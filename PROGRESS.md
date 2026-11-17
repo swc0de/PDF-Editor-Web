@@ -12,7 +12,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M5 | Organize pages | approved |
 | M6 | Combine and split | approved |
 | M7 | Properties, attachments, layers | approved |
-| M8 | Comments and annotations | in progress |
+| M8 | Comments and annotations | awaiting approval |
 | M9 | Forms and signatures | todo |
 | M10 | Protect, redact, print | todo |
 | M11 | Scan & OCR | todo |
@@ -194,3 +194,31 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 - **Fixed:** stray "null" text at the end of the tools list (replaceChildren(null)); new smoke test scans for
   "null"/"undefined"/"[object" text across all panels.
 - **Tests:** `info.spec.mjs` (9) + smoke stray-text test. Total 122.
+
+### M8 — Comments and annotations (awaiting approval)
+- **Ops (worker):** `core/ops/annot-ops.js` — addAnnotations({items:[{page,spec}]}) → {ids}, updateAnnotation({page,id,
+  rect?,from?,contents?,color?,opacity?,width?,fontSize?}) (`from` = rect the UI measured; pdf.js can report a different
+  rect than /Rect, so the same from→rect transform is applied to /Rect, QuadPoints, L, InkList), deleteAnnotations
+  (also IRT replies/states and Popups), addReply, setReviewState (StateModel Review, State Completed/None).
+  `core/ops/annot-helpers.js` (in HELPERS so they reach the worker): spec format, appearance streams for 9 types,
+  createAnnotation, specFromDict, transformSpec, createChildAnnotation. FreeText text colour in /DA only (no /C).
+- **App:** `app.edit()` now returns the op's value (`value ?? true`). `ui/annotate/annotator.js` (`app.annotator`):
+  tools select/highlight/underline/strikeout/note/freetext/square/circle/line/arrow/ink, prefs `annot.style.<tool>`,
+  selection frame + 8 handles, move/resize via pointer, SVG draft previews, inline textarea for text boxes (Ctrl+Enter /
+  blur commits, Esc cancels), note → opens Comments panel editor (`pendingEdit`/`editcomment`), markup from
+  `range.getClientRects()` merged per line → quads. Host classes `.annotating` / `.annot-select` / `.annot-markup`
+  control pointer-events. pdf.js 6 PageViewport has no convertToViewportRectangle → `toViewportRect()`.
+  `ui/annotate/toolbar.js` (docked; `--annot-bar-h` via ResizeObserver pushes `.viewer-host` down; wraps when narrow).
+- **View:** PageView builds `.annot-box` hit areas in the link layer for markup annotations (not replies/hidden),
+  `view.annotations`, `view.baseViewport`; viewer emits `annotations`.
+- **Comments panel:** `ui/panels/comments-panel.js` — `loadThreads(pdf, pdfjs)` (all pages in batches of 16; replies by
+  inReplyTo chain, review states → resolved), filters, edit/reply/resolve/reopen/delete, jump-to + select.
+- **Tools ready:** comment, highlight, draw (`tools/annotate.js`); palette commands `annotate.<tool>`, hidden
+  Delete/Backspace and Escape commands.
+- **Tests:** `annotate.spec.mjs` (5: every type → save → reopen in new tab → pdf.js reads subtypes/author/contents/
+  appearance + canvas pixels; move/resize/restyle/delete undo + remembered styles; file annotations edit/move;
+  panel replies/resolve/filters/jump/delete + saved structure; dark screenshots), `tests/unit/annot-ops.spec.mjs` (2).
+  Test helper `stepDone` also waits for `model.busy` false (history label changes before the view reloads).
+- **Known limitations:** no on-page reply pop-ups; Helvetica/WinAnsi in text-box appearances; no polygon/squiggly/stamp
+  creation; toolbar wraps to two rows when the viewport is narrow (side + tools panels open).
+

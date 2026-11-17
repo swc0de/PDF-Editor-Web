@@ -2,11 +2,13 @@
 // more op modules here.
 import * as pageOps from './page-ops.js';
 import * as infoOps from './info-ops.js';
+import * as annotOps from './annot-ops.js';
+import * as annotHelpers from './annot-helpers.js';
 import * as helpers from './pdf-helpers.js';
 import * as jobs from './jobs.js';
 
-export const OPS = { ...pageOps, ...infoOps };
-export const HELPERS = { ...helpers };
+export const OPS = { ...pageOps, ...infoOps, ...annotOps };
+export const HELPERS = { ...helpers, ...annotHelpers };
 export const JOBS = { ...jobs };
 
 const literal = (table) => `{${Object.entries(table).map(([name, fn]) => `${JSON.stringify(name)}: (${fn.toString()})`).join(',\n')}}`;

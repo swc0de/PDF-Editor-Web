@@ -95,6 +95,7 @@ export class Viewer extends EventTarget {
         getPage: (idx) => this.getPage(idx),
         getOcConfig: () => this.ocConfigPromise,
         onTextLayer: (view) => this.emit('textlayer', { index: view.index }),
+        onAnnotations: (view) => this.emit('annotations', { index: view.index }),
       }),
     );
     const frag = document.createDocumentFragment();

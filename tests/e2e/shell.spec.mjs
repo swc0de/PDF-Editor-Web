@@ -144,7 +144,7 @@ test.describe('panels', () => {
     await expect(side.locator('.thumb').first()).toBeVisible(); // Pages panel is built (M3)
 
     // Panels built in later milestones still show "Coming soon".
-    for (const [name, title] of [['Fields', 'Fields'], ['Comments', 'Comments']]) {
+    for (const [name, title] of [['Fields', 'Fields']]) {
       const btn = page.locator('.rail').getByRole('button', { name, exact: true });
       await btn.click();
       await expect(btn).toHaveAttribute('aria-pressed', 'true');
@@ -152,7 +152,7 @@ test.describe('panels', () => {
       await expect(side.locator('.empty-state')).toBeVisible();
       await expect(side.locator('.empty-state')).toContainText('Coming soon');
     }
-    for (const name of ['Layers', 'Attachments', 'Document Properties']) {
+    for (const name of ['Comments', 'Layers', 'Attachments', 'Document Properties']) {
       await page.locator('.rail').getByRole('button', { name, exact: true }).click();
       await expect(side.locator('.side-panel-title')).toHaveText(name);
       await expect(side).not.toContainText('Coming soon');

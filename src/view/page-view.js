@@ -14,6 +14,10 @@ export const MAX_CANVAS_PIXELS = 16_777_216;
 const BASE_PIXELS = 4_000_000;
 const MAX_TILES_PER_PAGE = 48;
 
+/** Annotation subtypes listed as comments (Links, widgets and popups aren't). */
+export const MARKUP = new Set(['Text', 'FreeText', 'Line', 'Square', 'Circle', 'Polygon', 'PolyLine', 'Highlight',
+  'Underline', 'Squiggly', 'StrikeOut', 'Stamp', 'Caret', 'Ink', 'FileAttachment', 'Sound', 'Redact']);
+
 const isCancel = (err) => err?.name === 'RenderingCancelledException' || err?.name === 'AbortException';
 
 export class PageView {
@@ -23,12 +27,14 @@ export class PageView {
    * @param {object} deps.pdfjs           the pdf.js module
    * @param {(i:number) => Promise<object>} deps.getPage
    */
-  constructor(index, { pdfjs, getPage, getOcConfig, onTextLayer }) {
+  constructor(index, { pdfjs, getPage, getOcConfig, onTextLayer, onAnnotations }) {
     this.index = index;
     this.pdfjs = pdfjs;
     this.getPage = getPage;
     this.getOcConfig = getOcConfig;
     this.onTextLayer = onTextLayer;
+    this.onAnnotations = onAnnotations;
+    this.annotations = null; // markup annotations (pdf.js data) once loaded
     this.textLayerObj = null; // the pdf.js TextLayer (textDivs ↔ text items)
     this.proxy = null;
     this.error = null;
@@ -295,6 +301,8 @@ export class PageView {
     const annotations = await this.proxy.getAnnotations({ intent: 'display' });
     if (stale()) return;
     const viewport = this.proxy.getViewport({ scale: params.scale, rotation: this.rot(params) });
+    // Kept for converting pointer positions ↔ PDF coordinates (annotation tools).
+    this.baseViewport = this.proxy.getViewport({ scale: 1, rotation: this.rot(params) });
     const div = h('div.linkLayer');
     this.pdfjs.setLayerDimensions(div, viewport);
     const [vx0, , vx1, vy1] = this.proxy.view;
@@ -320,10 +328,30 @@ export class PageView {
       });
       div.append(link);
     }
+    // Comments/markup: hit areas the annotation tools work with (and a
+    // visible icon for notes that have no appearance of their own).
+    const markup = annotations.filter((a) => MARKUP.has(a.subtype) && !a.inReplyTo && !(a.annotationFlags & 2));
+    for (const a of markup) {
+      const [x0, y0, x1, y1] = this.pdfjs.Util.normalizeRect(a.rect);
+      const box = h('div.annot-box', {
+        dataset: { annotId: a.id, subtype: a.subtype },
+        title: [a.titleObj?.str, a.contentsObj?.str].filter(Boolean).join(': ') || null,
+      });
+      if (a.subtype === 'Text' && !a.hasAppearance) box.classList.add('note-icon');
+      Object.assign(box.style, {
+        left: `${((x0 - vx0) / W) * 100}%`,
+        top: `${((vy1 - y1) / H) * 100}%`,
+        width: `${((x1 - x0) / W) * 100}%`,
+        height: `${((y1 - y0) / H) * 100}%`,
+      });
+      div.append(box);
+    }
+    this.annotations = markup;
     this.linkLayer?.remove();
     this.linkLayer = div;
     this.linkRotation = params.rotation;
     this.el.append(div);
+    this.onAnnotations?.(this);
   }
 
   clearTiles() {
@@ -373,6 +401,7 @@ export class PageView {
     this.linkLayer?.remove();
     this.linkLayer = null;
     this.linkRotation = null;
+    this.annotations = null;
     if (!this.error) {
       this.placeholder.hidden = false;
       this.el.dataset.state = 'placeholder';

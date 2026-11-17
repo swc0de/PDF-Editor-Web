@@ -30,6 +30,8 @@ import { openExtractDialog } from './combine/extract-dialog.js';
 import { runJob } from '../core/jobs.js';
 import { formatPageRange } from '../core/page-range.js';
 import { getPdfjs, openPdf, isPasswordCancel } from '../view/pdfjs.js';
+import { Annotator } from './annotate/annotator.js';
+import { registerAnnotateCommands } from '../tools/annotate.js';
 import { runTool, getTool, listTools } from '../tools/registry.js';
 import { getSetting, getArrangement, saveArrangement, resetArrangement, onSettingsChange } from '../core/settings.js';
 import { contentId, addRecent, setRecentThumbnail, getRecentBytes, removeRecent, clearRecents } from '../core/recents.js';
@@ -108,8 +110,10 @@ export class App extends EventTarget {
       onClose: () => this.closeFind(),
     });
     this.shell.main.append(this.findBar.el);
+    this.annotator = new Annotator(this);
 
     registerAppCommands(this);
+    registerAnnotateCommands(this);
     this.menubar = createMenubar(buildMenus(this), { label: t('menu.label') });
     this.shell.menubarSlot.append(this.menubar.el);
 
@@ -526,12 +530,15 @@ export class App extends EventTarget {
 
   // ----------------------------------------------------------- editing
 
-  /** Run a document operation on a tab as one named undo step. */
+  /**
+   * Run a document operation on a tab as one named undo step. Resolves to the
+   * op's result value (or true), or false if it failed.
+   */
   async edit(tab, op, args, label) {
     if (!tab) return false;
     try {
-      await tab.model.execute(op, args, label);
-      return true;
+      const value = await tab.model.execute(op, args, label);
+      return value ?? true;
     } catch (err) {
       if (err.name === 'ReadOnlyError') toast(t(`edit.readOnly.${err.reason}`), { kind: 'error' });
       else toast(t('edit.failed', { message: err.message }), { kind: 'error', timeout: 6000 });

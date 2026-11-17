@@ -1,0 +1,204 @@
+/* M8 — commenting: toolbar, annotation hit areas, selection frame, drafts, Comments panel. */
+
+/* Contextual toolbar, docked at the top of the viewport while annotating. */
+.annot-toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--space-2);
+  min-height: 40px;
+  padding: 5px var(--space-2);
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  container-type: inline-size;
+}
+.annot-toolbar[hidden] { display: none; }
+.annot-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.main.annot-on > .viewer-host { top: var(--annot-bar-h, 41px); }
+.main.annot-on > .find-bar { top: calc(var(--annot-bar-h, 41px) + var(--space-2)); }
+.annot-group { display: flex; align-items: center; gap: 2px; }
+.annot-group[hidden], .annot-style[hidden], .annot-toolbar .btn[hidden] { display: none; }
+.annot-group + .annot-group:not(.annot-style .annot-group) { padding-left: var(--space-2); border-left: 1px solid var(--border); }
+.annot-toolbar .btn.icon-btn { width: 30px; height: 30px; border-color: transparent; background: transparent; }
+.annot-toolbar .btn.icon-btn:hover:not(:disabled) { background: var(--panel-2); }
+.annot-tool[aria-pressed="true"] { background: var(--accent-soft) !important; color: var(--accent-text); border-color: color-mix(in srgb, var(--accent) 40%, transparent) !important; }
+.annot-sep { width: 1px; height: 22px; background: var(--border); }
+.annot-style { display: flex; align-items: center; gap: var(--space-2); }
+.annot-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+}
+.annot-swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--accent); }
+.annot-swatch:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.annot-color {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  cursor: pointer;
+}
+.annot-color::-webkit-color-swatch-wrapper { padding: 2px; }
+.annot-color::-webkit-color-swatch { border: none; border-radius: 2px; }
+.annot-opacity-group { gap: var(--space-1); }
+.annot-opacity { width: 64px; accent-color: var(--accent); }
+.annot-opacity-value { min-width: 4ch; font-size: var(--text-sm); font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.annot-toolbar select.input { width: auto; height: 28px; padding: 0 4px; font-size: var(--text-sm); }
+.annot-hint {
+  display: none;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+@container (min-width: 1100px) { .annot-hint { display: block; } }
+.annot-done { height: 28px; }
+
+/* Annotation hit areas (in the page's link layer). Inert unless selecting,
+   so text under a highlight can still be selected. */
+.annot-box {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 2px;
+}
+.viewer-host.annot-select .annot-box,
+.annot-box.note-icon { pointer-events: auto; cursor: pointer; }
+.viewer-host.annot-select .annot-box:hover { outline: 1px dashed color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 1px; }
+.annot-box.note-icon {
+  background: #ffd400 center / 70% no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e2327' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3C/svg%3E");
+  border: 1px solid rgba(0, 0, 0, .35);
+}
+
+/* Drawing tools: the page itself takes the pointer. */
+.viewer-host.annotating .page { cursor: crosshair; }
+.viewer-host[data-annot-tool="freetext"] .page { cursor: text; }
+.viewer-host[data-annot-tool="note"] .page { cursor: copy; }
+.viewer-host.annotating .textLayer,
+.viewer-host.annotating .linkLayer,
+.viewer-host.annotating .annot-box,
+.viewer-host.annotating .pdf-link { pointer-events: none !important; }
+.viewer-host.annot-markup .textLayer { cursor: text; }
+.viewer-host.annot-select .pdf-link { pointer-events: none; }
+
+/* Selection frame with resize handles. */
+.annot-selection {
+  position: absolute;
+  z-index: 4;
+  border: 1.5px solid var(--accent);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.annot-selection.movable { pointer-events: auto; cursor: move; background: transparent; }
+.annot-selection.dragging { border-style: dashed; }
+.annot-handle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -5px 0 0 -5px;
+  border: 1.5px solid var(--accent);
+  border-radius: 2px;
+  background: #fff;
+  pointer-events: auto;
+}
+.h-nw { left: 0; top: 0; cursor: nwse-resize; }
+.h-n { left: 50%; top: 0; cursor: ns-resize; }
+.h-ne { left: 100%; top: 0; cursor: nesw-resize; }
+.h-e { left: 100%; top: 50%; cursor: ew-resize; }
+.h-se { left: 100%; top: 100%; cursor: nwse-resize; }
+.h-s { left: 50%; top: 100%; cursor: ns-resize; }
+.h-sw { left: 0; top: 100%; cursor: nesw-resize; }
+.h-w { left: 0; top: 50%; cursor: ew-resize; }
+
+/* Drafts: live shape preview and the inline text box editor. */
+.annot-draft {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.annot-textbox {
+  position: absolute;
+  z-index: 5;
+  min-width: 160px;
+  min-height: 1.6em;
+  border: 1.5px dashed var(--accent);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, .85);
+  font-family: Helvetica, Arial, sans-serif;
+  resize: both;
+  outline: none;
+}
+
+/* Comments panel */
+.comments-filters {
+  display: flex;
+  flex: none;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.comments-filters select.input { flex: 1; width: auto; min-width: 0; height: 26px; padding: 0 4px; font-size: var(--text-sm); }
+.comments-count { font-size: var(--text-sm); }
+.comments-body { flex: 1; min-height: 0; overflow: auto; }
+.comments-list { padding: var(--space-1) 0 var(--space-3); }
+.comment-page {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  background: var(--panel);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.comment-thread {
+  margin: var(--space-1) var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  cursor: pointer;
+  scroll-margin-top: 32px;
+}
+.comment-thread:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+.comment-thread:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.comment-thread.selected { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.comment-thread.resolved > .comment-text { color: var(--text-muted); }
+.comment-head { display: flex; align-items: center; gap: var(--space-2); min-height: 24px; }
+.comment-type-icon, .comment-reply-icon { display: inline-flex; flex: none; }
+.comment-reply-icon { color: var(--text-muted); }
+.comment-meta { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-2); }
+.comment-author { overflow: hidden; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+.comment-time { font-size: 11px; }
+.comment-actions { display: flex; flex: none; gap: 0; opacity: .55; transition: opacity .1s; }
+.comment-thread:hover .comment-actions,
+.comment-thread:focus-within .comment-actions,
+.comment-thread.selected .comment-actions { opacity: 1; }
+.btn.icon-btn.btn-xs { width: 24px; height: 24px; padding: 0; border-color: transparent; background: transparent; }
+.btn.icon-btn.btn-xs:hover:not(:disabled) { background: var(--panel-2); }
+.comment-resolved { flex: none; }
+.comment-text { margin: var(--space-1) 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.comment-text.muted { font-style: italic; }
+.comment-replies { margin: var(--space-2) 0 0 var(--space-3); padding-left: var(--space-2); border-left: 2px solid var(--border); }
+.comment-reply + .comment-reply { margin-top: var(--space-2); }
+.comment-editor { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-2); cursor: auto; }
+.comment-textarea { width: 100%; min-height: 56px; padding: var(--space-1) var(--space-2); resize: vertical; font: inherit; }
+.comment-editor-actions { display: flex; justify-content: flex-end; gap: var(--space-1); }

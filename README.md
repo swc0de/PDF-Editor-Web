@@ -227,6 +227,36 @@ their target.
 - Any encrypted PDF (even one that opens without a password) is read-only,
   because pdf-lib can't rewrite encrypted files.
 
+### Comments and annotations (`src/ui/annotate/`, `src/core/ops/annot-*.js`)
+
+- **Tools** (contextual toolbar, docked above the page while commenting):
+  select · highlight, underline and strike-out (select text with the tool on,
+  or select text first and then pick the tool) · sticky note · text box ·
+  rectangle · ellipse · line · arrow · freehand drawing. Colour (6 swatches +
+  custom), opacity, stroke width and font size; each tool remembers its
+  last-used style (preferences). With an annotation selected, the controls
+  restyle it.
+- **Select / move / resize / delete:** click an annotation with the Select
+  tool (sticky notes are clickable any time), drag it, drag one of its 8
+  handles, press Delete. Esc cancels a drawing, then deselects, then leaves
+  commenting. Every change is one named undo step ("Move Rectangle"…).
+- **Real PDF annotations.** Each change runs in the editing worker and writes
+  standard annotation objects (Highlight, Underline, StrikeOut, Text,
+  FreeText, Square, Circle, Line with /LE arrow, Ink) **with appearance
+  streams** (`/AP /N`), author (`/T`, from Preferences → Author name),
+  `/Contents`, dates and `/NM`. pdf.js draws them like any other file's
+  annotations, so what you see is what's saved. Text-box colour lives in
+  `/DA`; `/C` stays the (empty) background as the spec intends.
+- **Comments panel:** all comments by page with author and time; edit text,
+  reply (a Text annotation with `/IRT`), resolve / reopen (a review-state
+  reply: `/StateModel /Review`, `/State /Completed` or `/None`, the latest
+  wins), delete (replies, states and popups go with it), filters by type,
+  author (incl. reply authors) and status, click to jump and select.
+- **Existing annotations** from the file are listed and can be edited: the
+  types above get a fresh appearance when moved, resized or restyled; others
+  (stamps, polygons…) can be moved, resized and deleted, and keep their own
+  appearance, scaled.
+
 ### Find and navigation
 
 - `view/text-index.js` — indexes each page's text in the background (yielding
@@ -329,6 +359,11 @@ it's skipped and so are its tests.
   comments on a page (file-attachment annotations) aren't listed.
 - "Embedded subset" is recognised by the standard `ABCDEF+` name prefix; pdf-lib
   doesn't use it, so its subsets show as "Embedded".
+
+- Comments: replies show in the Comments panel, not as pop-ups on the page.
+  Text boxes use Helvetica (WinAnsi): characters outside it are drawn as "?"
+  in the appearance (the comment text itself keeps them). Polygon, polyline,
+  squiggly and stamp annotations can't be created yet.
 
 ## Privacy
 

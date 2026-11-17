@@ -66,7 +66,7 @@ export function workerMain(OPS, HELPERS, JOBS) {
       // does), so a document kept across edits could hand out stale pages.
       const freshPages = () => { try { entry.doc.pageCache.invalidate(); } catch (e) { /* older pdf-lib */ } };
       freshPages();
-      const result = (await fn(L, entry.doc, msg.args || {})) || {};
+      const result = (await fn(L, entry.doc, msg.args || {}, { helpers: HELPERS })) || {};
       freshPages();
       if (type === 'run') {
         // Read-only query: no save, no new version. Byte results are transferred.
