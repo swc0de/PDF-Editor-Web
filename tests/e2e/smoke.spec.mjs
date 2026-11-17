@@ -10,7 +10,10 @@ test('loads from file:// with the right title and no console errors', async ({ p
   await expect(page.locator('.home-privacy')).toHaveText('Your files never leave this device');
 });
 
-test('tool registry holds the complete catalogue, all "Coming soon"', async ({ page }) => {
+// Tools built so far; everything else must still say "Coming soon".
+const READY = ['read-mode'];
+
+test('tool registry holds the complete catalogue; unbuilt tools are "Coming soon"', async ({ page }) => {
   await openApp(page);
   const info = await page.evaluate(() => {
     const { registry } = window.pdfEditor;
@@ -28,13 +31,15 @@ test('tool registry holds the complete catalogue, all "Coming soon"', async ({ p
     expect(info.tools.some((t) => t.category === category), `category ${category} has tools`).toBe(true);
   }
   for (const tool of info.tools) {
-    expect(tool.status, tool.id).toBe('soon');
-    expect(tool.hasRun, tool.id).toBe(false);
+    const ready = READY.includes(tool.id);
+    expect(tool.status, tool.id).toBe(ready ? 'ready' : 'soon');
+    expect(tool.hasRun, tool.id).toBe(ready);
     expect(tool.milestone, tool.id).toMatch(/^M\d+$/);
   }
   // Every tool appears on the home catalogue with a badge and a real label.
   const cards = page.locator('.catalogue .tool-card');
   await expect(cards).toHaveCount(info.tools.length);
+  await expect(page.locator('.catalogue .tool-card .badge')).toHaveCount(info.tools.length - READY.length);
   await expect(page.locator('.catalogue .tool-card .badge').first()).toHaveText('Coming soon');
   const labels = await page.locator('.catalogue .tool-label').allTextContents();
   for (const label of labels) expect(label).not.toMatch(/^tool\./); // i18n key leaked
@@ -51,6 +56,7 @@ test('runTool refuses tools that are not built yet', async ({ page }) => {
   // Clicking a "Coming soon" card does nothing harmful.
   // (force: Playwright won't click aria-disabled elements by default)
   await page.locator('[data-tool="organize-pages"]').first().click({ force: true });
+  await expect(page.locator('.toast')).toContainText('“Organize pages” is coming soon.');
   await expect(page.locator('#home')).toBeVisible();
 });
 

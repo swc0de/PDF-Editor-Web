@@ -214,5 +214,9 @@
     "password": "secret",
     "ownerPassword": "owner-secret",
     "encryptedWith": "pikepdf"
+  },
+  "large.pdf": {
+    "pageCount": 500,
+    "landscapeEvery": 50
   }
 }

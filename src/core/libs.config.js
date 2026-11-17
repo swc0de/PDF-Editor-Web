@@ -21,6 +21,7 @@ export const LIBS = {
       cmaps: 'cmaps/',
       standardFonts: 'standard_fonts/',
       wasm: 'wasm/',
+      iccs: 'iccs/',
     },
   },
   pdfLib: {

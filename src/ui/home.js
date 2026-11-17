@@ -6,16 +6,20 @@ import { formatShortcut } from './keys.js';
 import { getTool, listTools, toolsByCategory, onRegistryChange } from '../tools/registry.js';
 import { RECOMMENDED } from '../tools/catalogue.js';
 
-export function createHome(container) {
+export function createHome(container, { onOpen, onTool }) {
   const el = h('div.home', { id: 'home' });
-  const render = () => el.replaceChildren(...build());
+  el.addEventListener('click', (e) => {
+    const card = e.target.closest('.tool-card');
+    if (card) onTool(card.dataset.tool);
+  });
+  const render = () => el.replaceChildren(...build(onOpen));
   render();
   onRegistryChange(render);
   container.append(el);
   return el;
 }
 
-function build() {
+function build(onOpen) {
   const all = listTools();
   const ready = all.filter((tool) => tool.status === 'ready').length;
 
@@ -27,10 +31,9 @@ function build() {
     h('p.muted', t('home.drop.hint')),
     h(
       'div.home-drop-actions',
-      // Opening files arrives with the viewer (M1). Shown disabled, not faked.
-      h('button.btn.primary', { type: 'button', disabled: true, id: 'home-open' },
+      h('button.btn.primary', { type: 'button', id: 'home-open', onclick: onOpen },
         icon('folderOpen'), t('home.drop.open')),
-      h('span.badge', t('status.soon')),
+      h('span.muted.home-shortcut', formatShortcut('Mod+O')),
     ),
     h('p.home-privacy', icon('shield', { size: 14 }), h('span', t('app.privacy'))),
   );

@@ -67,7 +67,12 @@ What the harness enforces on **every** end-to-end test (`tests/e2e/helpers.mjs`)
 - The build fails on an import that doesn't resolve, on a bare npm specifier
   (libraries come from the CDN, not npm), and if `src/core/version.js`
   disagrees with `package.json`.
-- Workers (pdf.js, the pdf-lib worker) will likewise be created from Blob URLs.
+- **Workers** are created from Blob URLs. pdf.js's worker code is downloaded on
+  the main thread and started as a *classic* worker, because Chrome refuses
+  module workers from Blob URLs on `file://` pages. Its only module syntax (a
+  trailing `export {…}` and `import.meta.url` inside the wasm decoders) is
+  stripped/substituted first. pdf.js fetches fonts, CMaps and wasm on the main
+  thread (`useWorkerFetch: false`).
 
 Requires import maps and module scripts: Chrome/Edge 89+, Firefox 108+,
 Safari 16.4+.
@@ -104,6 +109,21 @@ tests/
 dist/pdf-editor.html   the deliverable
 ```
 
+### Viewer (`src/view/`)
+
+- `layout.js` — pure maths: page boxes for continuous / single / two-up (with
+  cover) at any zoom and view rotation; visible rows by binary search.
+- `viewer.js` — the scroll container. Only visible pages ±2 are rendered;
+  pages more than 6 away release their canvases. Placeholders always have the
+  right size (page 1's size first, then every page's real size fetched in the
+  background). Zoom keeps the point under the cursor (or the centre) still; the
+  sharp re-render waits until zooming pauses. A small scheduler renders at most
+  two pages at once, visible pages first, and cancels renders that went stale.
+- `page-view.js` — one page: a canvas at CSS size × devicePixelRatio; above
+  300% zoom (or past 16 MP) a low-resolution backdrop plus 1024-px tiles for the
+  visible area only. Text layer (pdf.js `TextLayer`) for selection, a link layer
+  for internal/external links, and an error tile when a page can't be loaded.
+
 ### Tool registry
 
 `tools/catalogue.js` defines every planned tool (id, category, icon, shortcut,
@@ -130,10 +150,22 @@ the tests rely on are in `tests/fixtures/manifest.json`.
 | `corrupted.pdf` | page 3 can't be loaded; pages 1–2 and 4–5 can |
 | `truncated.pdf` | cut off at 60%: can't be opened at all |
 | `encrypted.pdf` | AES-256, user password `secret` |
+| `large.pdf` | 500 pages (every 50th landscape) for performance tests |
 
 `encrypted.pdf` needs an encryption tool when generating: the `qpdf` CLI, or
 Python's `pikepdf` (`pip install pikepdf`, which bundles qpdf). Without either
 it's skipped and so are its tests.
+
+## Known limitations
+
+- Only Chromium is covered by the automated tests. Safari trackpad pinch uses
+  `gesture*` events and is untested.
+- Links: URL links and destinations work; PDF named actions and JavaScript
+  actions are not executed.
+- Text selection follows the order of text in the PDF's content stream (what
+  pdf.js provides), which is reading order for most but not all files.
+- Single-page layout flips pages with PageUp/PageDown, ←/→ and the status bar,
+  not by scrolling past the end of a page.
 
 ## Privacy
 

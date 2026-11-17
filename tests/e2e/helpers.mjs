@@ -101,3 +101,18 @@ export async function openApp(page) {
 export async function shot(page, name) {
   await page.screenshot({ path: join(ROOT, 'test-results/screenshots', `${name}.png`), fullPage: false });
 }
+
+/** Open a fixture through the hidden file input; waits for page 1 to render. */
+export async function openFixture(page, name, { waitForRender = true } = {}) {
+  // Mark the current viewer so we can tell when the new one has replaced it.
+  await page.evaluate(() => document.querySelector('.viewer')?.classList.add('stale-viewer'));
+  await page.setInputFiles('#file-input', fixture(name));
+  if (waitForRender) {
+    await page.waitForSelector('.viewer:not(.stale-viewer) .page[data-page-number="1"][data-state="rendered"]', { timeout: 15_000 });
+  }
+}
+
+/** The viewer's state snapshot. */
+export function viewerState(page) {
+  return page.evaluate(() => window.pdfEditor.app.viewer?.state ?? null);
+}

@@ -5,7 +5,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | Milestone | Name | Status |
 |---|---|---|
 | M0 | Scaffold, build and test harness | approved |
-| M1 | Core viewer | in progress |
+| M1 | Core viewer | awaiting approval |
 | M2 | App shell, tabs, home screen | todo |
 | M3 | Find and navigation | todo |
 | M4 | Document model, undo/redo, save, autosave | todo |
@@ -52,3 +52,27 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   `truncated.pdf` can't be opened at all (InvalidPDFException) → the app must show an error, not go blank.
 - **Tests:** 17 (6 e2e smoke incl. CDN library load + screenshots, 11 fixture checks). One unexplained
   failure of the theme-persistence test seen once; not reproducible in 166 reruns. Watch it.
+
+### M1 — Core viewer (awaiting approval)
+- **Files:** `view/pdfjs.js` (lib + worker + open/password), `view/layout.js` (pure layout),
+  `view/viewer.js` (scroll/zoom/virtualization/scheduler/navigation), `view/page-view.js` (canvas,
+  tiles, text + link layers, error tile), `ui/app.js` (controller + commands + drag/drop + read
+  mode/fullscreen), `ui/statusbar.js`, `ui/menu.js`, `ui/dialog.js`, `ui/toast.js`, `ui/commands.js`,
+  `tools/read-mode.js` (first tool marked ready), `styles/pdfjs-layers.css` (verbatim pdf.js CSS).
+- **Worker:** classic Blob worker built from the fetched pdf.worker.min.mjs (module Blob workers fail
+  on file:// in Chrome). `useWorkerFetch:false` so fonts/cmaps/wasm load on the main thread (also lets
+  Playwright routing serve them). `disableWorkerRendering:true`.
+- **pdf.js 6 gotchas:** no `PDFDocumentProxy.destroy()` → use `doc.loadingTask.destroy()`;
+  `getViewport({rotation})` is absolute → add page `/Rotate` to view rotation; text layer scales via
+  CSS vars `--scale-factor`/`--total-scale-factor` on an ancestor (set on `.page`), so zoom needs no rebuild.
+- **Zoom:** 100% = 96/72 px per pt. Modes `auto` (fit width ≤125%, fit page for landscape),
+  `fit-width`, `fit-page`, number. ⌘=/⌘-/⌘0, ctrl+wheel (pinch = small deltas → proportional),
+  Safari gesture events. Re-render held 140 ms after the last zoom change.
+- **Tiles:** zoom > 3 or > 16 MP → low-res backdrop (≤4 MP) + 1024 px device tiles, visible ±½ tile.
+- **Commands registry** (`ui/commands.js`) is ready for M2 menus/palette; shortcuts dispatched globally,
+  skipped while a dialog/menu is open. `kbd-nav` class on <html> shows the viewer focus ring only for keyboard users.
+- **Tests:** `viewer.spec.mjs` (17), `performance.spec.mjs` (500 pages: open ≈350 ms, no main-thread
+  stall > 50 ms while scrolling + zooming; canvases bounded). Long Tasks API isn't reported in headless
+  Chromium → heartbeat-timer stall detector with a self-check. Ctrl+O test asserts the picker input
+  is clicked (Playwright filechooser event races under parallel load).
+- **Known limitations:** see README. No tabs/menus yet (M2). Page labels in M3.

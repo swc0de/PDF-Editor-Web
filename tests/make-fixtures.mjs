@@ -463,6 +463,23 @@ async function multipageBytes() {
   return multipageCache;
 }
 
+// ---------------------------------------------------------------- large.pdf
+// 500 pages for performance tests: a heading, some text and a few shapes each.
+async function large() {
+  const doc = await newDoc('Five hundred pages');
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  for (let i = 1; i <= 500; i++) {
+    const page = doc.addPage(i % 50 === 0 ? [SIZES.letter[1], SIZES.letter[0]] : SIZES.letter);
+    heading(page, bold, `Large document — page ${i}`);
+    let y = page.getHeight() - 120;
+    for (let k = 0; k < 3; k++) y = paragraph(page, font, LOREM, y);
+    page.drawRectangle({ x: 56, y: 80, width: 200, height: 120, borderColor: rgb(0.2, 0.3, 0.5), borderWidth: 1.5, color: rgb(0.93, 0.95, 0.98) });
+    page.drawCircle({ x: 400, y: 140, size: 50, color: rgb(0.72, 0.01, 0.16), opacity: 0.3 });
+  }
+  await save(doc, 'large.pdf', { landscapeEvery: 50 });
+}
+
 // ------------------------------------------------------------ encrypted.pdf
 async function encrypted() {
   const doc = await newDoc('Password-protected document');
@@ -512,5 +529,6 @@ await attachment();
 await layers();
 await corrupted();
 await encrypted();
+await large();
 await writeFile(join(DIR, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 console.log(`✓ ${Object.keys(manifest).length} fixtures, manifest.json written`);

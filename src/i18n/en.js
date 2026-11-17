@@ -96,4 +96,80 @@ export const en = {
   'tool.accessibility-check.desc': 'Find common accessibility problems',
   'tool.undo-history.label': 'Undo history',
   'tool.undo-history.desc': 'Step back to any earlier state',
+
+  // Common
+  'common.ok': 'OK',
+  'common.cancel': 'Cancel',
+  'common.dismiss': 'Dismiss',
+
+  // Commands
+  'command.file.open': 'Open…',
+  'command.file.close': 'Close document',
+  'command.view.zoomIn': 'Zoom in',
+  'command.view.zoomOut': 'Zoom out',
+  'command.view.actualSize': 'Actual size',
+  'command.view.rotateLeft': 'Rotate view left',
+  'command.view.rotateRight': 'Rotate view right',
+  'command.view.fullscreen': 'Full screen',
+  'command.view.readMode': 'Read mode',
+  'command.view.toggleTheme': 'Toggle light/dark theme',
+  'command.go.firstPage': 'First page',
+  'command.go.lastPage': 'Last page',
+
+  // Opening documents
+  'open.loading': 'Opening {name}…',
+  'open.error.title': 'Can’t open “{name}”',
+  'open.error.invalid': 'This file isn’t a PDF, or it’s too damaged to read.',
+  'open.error.missing': 'The file could not be found.',
+  'open.error.offline': 'PDF Editor couldn’t download its PDF engine. Check your internet connection and try again.',
+  'open.error.generic': 'Something went wrong while opening the file: {message}',
+  'drop.overlay': 'Drop a PDF to open it',
+
+  // Password
+  'password.title': 'Password required',
+  'password.message': '“{name}” is protected. Enter its password to open it.',
+  'password.label': 'Password',
+  'password.incorrect': 'That password is incorrect. Try again.',
+  'password.open': 'Open',
+
+  // Viewer
+  'viewer.label': 'Document pages',
+  'viewer.pageLabel': 'Page {n}',
+  'viewer.pageError.title': 'Page {n} couldn’t be displayed',
+  'viewer.pageError.detail': 'This part of the file is damaged. The other pages are unaffected.',
+  'viewer.link.internal': 'Go to a location in this document',
+
+  // Links
+  'link.title': 'Open external link?',
+  'link.message': 'This link leads outside the document, to:',
+  'link.open': 'Open link',
+  'link.unsupported': 'This kind of link can’t be opened: {url}',
+
+  // Status bar
+  'status.label': 'Page and zoom controls',
+  'status.pageNumber': 'Page number',
+  'status.ofPages': 'of {n}',
+  'status.prevPage': 'Previous page',
+  'status.nextPage': 'Next page',
+  'status.zoomLevel': 'Zoom level',
+  'status.zoomPresets': 'Zoom presets',
+  'status.layout': 'Page layout',
+  'status.soonToast': '“{name}” is coming soon.',
+
+  // Zoom
+  'zoom.auto': 'Automatic',
+  'zoom.fitWidth': 'Fit width',
+  'zoom.fitPage': 'Fit page',
+
+  // Layouts
+  'layout.continuous': 'Continuous',
+  'layout.single': 'Single page',
+  'layout.twoUp': 'Two pages',
+  'layout.twoUpCover': 'Two pages with cover',
+
+  // Read mode / full screen
+  'readMode.hint': 'Read mode — press Esc to exit',
+  'readMode.exit': 'Exit Read mode',
+  'readMode.needsDocument': 'Open a PDF to use Read mode.',
+  'fullscreen.unavailable': 'Full screen isn’t available here.',
 };
