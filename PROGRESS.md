@@ -11,8 +11,8 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M4 | Document model, undo/redo, save, autosave | approved |
 | M5 | Organize pages | approved |
 | M6 | Combine and split | approved |
-| M7 | Properties, attachments, layers | awaiting approval |
-| M8 | Comments and annotations | todo |
+| M7 | Properties, attachments, layers | approved |
+| M8 | Comments and annotations | in progress |
 | M9 | Forms and signatures | todo |
 | M10 | Protect, redact, print | todo |
 | M11 | Scan & OCR | todo |
@@ -177,7 +177,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 - **Tools ready:** combine-files, split-document, extract-pages.
 - **Tests:** `combine.spec.mjs` (10), `tests/unit/jobs.spec.mjs` (5). Total 111.
 
-### M7 — Properties, attachments, layers (awaiting approval)
+### M7 — Properties, attachments, layers (approved)
 - **Panels:** `ui/panels/properties-panel.js` (form → `setMetadata` op; facts from pdf.js getMetadata /
   getPermissions (a Set of allowed flags in pdf.js 6) / getMarkInfo / getFieldObjects / getAttachments; fonts via
   `model.query('inspectFonts')`), `ui/panels/attachments-panel.js` (pdf.js 6: `getAttachments()` = metadata only,
