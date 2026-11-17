@@ -11,7 +11,7 @@ test('loads from file:// with the right title and no console errors', async ({ p
 });
 
 // Tools built so far; everything else must still say "Coming soon".
-const READY = ['read-mode', 'find', 'bookmarks', 'page-thumbnails', 'undo-history'];
+const READY = ['read-mode', 'find', 'bookmarks', 'page-thumbnails', 'undo-history', 'organize-pages', 'rotate-pages', 'insert-pages', 'delete-pages'];
 
 test('tool registry holds the complete catalogue; unbuilt tools are "Coming soon"', async ({ page }) => {
   await openApp(page);
@@ -51,12 +51,12 @@ test('tool registry holds the complete catalogue; unbuilt tools are "Coming soon
 
 test('runTool refuses tools that are not built yet', async ({ page }) => {
   await openApp(page);
-  const result = await page.evaluate(() => window.pdfEditor.registry.runTool('organize-pages'));
+  const result = await page.evaluate(() => window.pdfEditor.registry.runTool('split-document'));
   expect(result).toEqual({ ok: false, reason: 'soon' });
   // Clicking a "Coming soon" card does nothing harmful.
   // (force: Playwright won't click aria-disabled elements by default)
-  await page.locator('[data-tool="organize-pages"]').first().click({ force: true });
-  await expect(page.locator('.toast')).toContainText('“Organize pages” is coming soon.');
+  await page.locator('[data-tool="split-document"]').first().click({ force: true });
+  await expect(page.locator('.toast')).toContainText('“Split document” is coming soon.');
   await expect(page.locator('#home')).toBeVisible();
 });
 

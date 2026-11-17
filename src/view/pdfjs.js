@@ -5,6 +5,25 @@ import { libUrl } from '../core/libs.config.js';
 
 let ready = null;
 
+// All documents share one pdf.js worker port. pdf.js refuses to open a
+// document while another's destroy() is still pending on that port, so every
+// destroy goes through destroyPdf() and openPdf() waits for them first.
+const pendingDestroys = new Set();
+
+/** Close a pdf.js document (or loading task) safely. */
+export function destroyPdf(docOrTask) {
+  const task = docOrTask?.loadingTask ?? docOrTask;
+  if (!task?.destroy) return Promise.resolve();
+  const p = task.destroy().catch(() => {}).finally(() => pendingDestroys.delete(p));
+  pendingDestroys.add(p);
+  return p;
+}
+
+/** Resolves once no document is being destroyed. */
+export async function pdfjsIdle() {
+  while (pendingDestroys.size) await Promise.all([...pendingDestroys]);
+}
+
 /** Load pdf.js once and wire up a module worker created from a Blob URL. */
 export function getPdfjs() {
   if (!ready) {
@@ -65,6 +84,7 @@ export class PasswordCancelled extends Error {
  */
 export async function openPdf(bytes, { askPassword, onProgress, password: initialPassword = null } = {}) {
   const pdfjs = await getPdfjs();
+  await pdfjsIdle();
   const task = pdfjs.getDocument({
     data: bytes.slice(), // pdf.js transfers (detaches) the buffer it gets
     password: initialPassword ?? undefined,
@@ -88,7 +108,7 @@ export async function openPdf(bytes, { askPassword, onProgress, password: initia
     const entered = askPassword ? await askPassword(retry) : null;
     if (entered === null || entered === undefined) {
       cancelled = true;
-      task.destroy();
+      destroyPdf(task);
       return;
     }
     password = entered;

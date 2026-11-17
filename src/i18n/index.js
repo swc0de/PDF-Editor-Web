@@ -26,3 +26,8 @@ export function t(key, params) {
 export function hasString(key) {
   return key in current || key in en;
 }
+
+/** Plural-aware: uses `${key}.one` when n === 1, else `${key}.other`. */
+export function tn(key, n, params = {}) {
+  return t(`${key}.${n === 1 ? 'one' : 'other'}`, { n, ...params });
+}

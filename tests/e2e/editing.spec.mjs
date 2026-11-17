@@ -350,6 +350,6 @@ test('screenshots: editing UI in light and dark', async ({ page }) => {
     await reloadApp(page);
     await expect(page.locator('.recovery')).toBeVisible();
     await shot(page, `m4-recovery-${theme}`);
-    await page.evaluate(() => { localStorage.clear(); indexedDB.deleteDatabase('pdf-editor'); });
+    await page.evaluate(() => window.pdfEditor.storage.clearAll());
   }
 });

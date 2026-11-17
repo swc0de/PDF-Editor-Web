@@ -87,6 +87,7 @@ export function registerAppCommands(app) {
   def({ id: 'view.readMode', label: 'command.view.readMode', icon: 'bookOpen', enabled: hasDoc, run: () => app.toggleReadMode() });
   def({ id: 'view.exitReadMode', label: 'readMode.exit', shortcut: 'Escape', hidden: true, enabled: () => app.readMode, run: () => app.exitReadMode() });
   def({ id: 'find.close', label: 'find.close', shortcut: 'Escape', hidden: true, enabled: () => app.findBar.isOpen, run: () => app.closeFind() });
+  def({ id: 'organize.close', label: 'organize.done', shortcut: 'Escape', hidden: true, enabled: () => app.organizerOpen, run: () => app.closeOrganizer() });
   def({ id: 'view.toggleTheme', label: 'command.view.toggleTheme', icon: 'moon', run: () => toggleTheme() });
   for (const p of PANELS) {
     def({ id: `panel.${p.id}`, label: `command.panel.${p.id}`, icon: p.icon, run: () => app.showPanel(p.id) });

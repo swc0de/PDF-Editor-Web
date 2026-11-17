@@ -4,7 +4,7 @@
 // serialised; `onChange` (the tab reloading its view) is awaited inside the
 // queue, so the view and the model never disagree.
 import { UndoHistory, newVersion } from './undo-history.js';
-import { applyOp, closeWorkerDoc } from './pdf-worker.js';
+import { applyOp, runQuery, closeWorkerDoc } from './pdf-worker.js';
 
 export class ReadOnlyError extends Error {
   constructor(reason) {
@@ -124,6 +124,14 @@ export class DocumentModel extends EventTarget {
         structural: from.pageCount !== entry.pageCount,
       });
       return result.value;
+    });
+  }
+
+  /** A read-only operation on the current state (nothing is recorded). */
+  query(op, args) {
+    return this.enqueue(async () => {
+      const cur = this.history.current;
+      return runQuery({ docId: this.docId, version: cur.version, op, args, getBytes: () => cur.bytes });
     });
   }
 

@@ -267,8 +267,8 @@ test.describe('command palette', () => {
     await expect(options.first()).toContainText('Fit page');
 
     // Tools are listed, unbuilt ones marked.
-    await input.fill('organize');
-    await expect(options.first()).toContainText('Organize pages');
+    await input.fill('split doc');
+    await expect(options.first()).toContainText('Split document');
     await expect(options.first()).toContainText('Coming soon');
 
     // Arrow keys move the active option.
@@ -433,6 +433,6 @@ test('screenshots: shell in light and dark', async ({ page }) => {
     await page.getByRole('menuitem', { name: 'About PDF Editor' }).click();
     await shot(page, `m2-about-${theme}`);
     await page.keyboard.press('Escape');
-    await page.evaluate(() => { localStorage.clear(); indexedDB.deleteDatabase('pdf-editor'); });
+    await page.evaluate(() => window.pdfEditor.storage.clearAll());
   }
 });

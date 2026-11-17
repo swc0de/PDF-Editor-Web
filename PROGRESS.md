@@ -9,7 +9,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M2 | App shell, tabs, home screen | approved |
 | M3 | Find and navigation | approved |
 | M4 | Document model, undo/redo, save, autosave | approved |
-| M5 | Organize pages | in progress |
+| M5 | Organize pages | awaiting approval |
 | M6 | Combine and split | todo |
 | M7 | Properties, attachments, layers | todo |
 | M8 | Comments and annotations | todo |
@@ -142,3 +142,24 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 - **Tests:** `editing.spec.mjs` (10), `tests/unit/i18n.spec.mjs` (missing-string check). Total 76.
   `reloadApp()` helper waits 250 ms before reloading (Chromium localStorage commit race under load).
   Fixed along the way: palette reopen race (closed dialog not yet 'close'd), autosave deletion awaited on save.
+
+### M5 — Organize pages (awaiting approval)
+- **UI:** `ui/organize/organizer.js` (overlay inside the tab host; viewer container hidden while open; windowed
+  grid with absolute tiles; listbox + aria-activedescendant; pointer DnD; keyboard), `ui/organize/insert-dialog.js`.
+  `app.openOrganizer()/closeOrganizer()`, command `organize.close` (Esc). Tools ready: organize-pages,
+  rotate-pages, insert-pages, delete-pages (all open the organizer). extract-pages tool stays M6.
+- **Ops** (`core/ops/page-ops.js`): deletePages (prunes outline + fields on deleted pages; refuses all pages),
+  duplicatePages, insertBlank (size, rotate), insertFromPdf, reorderPages (permutation; same page objects),
+  exportPages (read-only, via worker `type: 'run'` → `model.query()`). Pure helpers: `core/page-order.js`
+  (moveSelection/nudgeSelection), `core/page-range.js` (parse/format "1-3, 7, 10-"). Plurals: `tn()` in i18n.
+- **Bugs fixed:** pdf-lib `removePage()` doesn't invalidate its page cache → worker invalidates around every op;
+  pdf.js refuses getDocument while a destroy is pending on the shared port → `destroyPdf()`/`pdfjsIdle()` in
+  view/pdfjs.js (always use them); Chromium `canvas.toBlob()` can stall for seconds → `ui/canvas-encode.js`;
+  `file://` localStorage can vanish on reload → prefs mirrored to IDB store `prefs` (DB v2), `loadPrefs()`
+  awaited in main.js before anything reads prefs.
+- **Thumbnails:** `ui/thumbnails.js` shared cache keyed `num-gen-rotation` of the PDF page object
+  (`tab.thumbKeys[i]` maps index→key for invalidation of `affected` pages).
+- **Tests:** `organize.spec.mjs` (12), `tests/unit/page-ops.spec.mjs` (9). Playwright: performance test is its
+  own project depending on `chromium` (runs alone afterwards); `--repeat-each` only repeats it, so stress with
+  `npx playwright test --project chromium --repeat-each 3 --workers 6`. `window.pdfEditor.storage.clearAll()`
+  resets storage in tests (deleteDatabase is blocked while open). Total 97 tests.

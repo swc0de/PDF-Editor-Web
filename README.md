@@ -158,6 +158,32 @@ dist/pdf-editor.html   the deliverable
   Cancel; leaving the page with unsaved work triggers the browser's prompt.
 - Password-protected PDFs open read-only (pdf-lib can't edit encrypted files).
 
+### Organize pages (`src/ui/organize/`, `src/core/ops/page-ops.js`)
+
+A full-viewport grid over the document: windowed (only rows near the view
+exist in the DOM), thumbnails cached per page object so reordering doesn't
+re-render them, click / Ctrl-click / Shift-click selection plus Select all /
+none / invert / odd / even, pointer drag-and-drop with a drop indicator and
+auto-scroll, and keyboard control (arrows, Shift+arrows, Delete, Ctrl+D,
+Ctrl+←/→, Ctrl+A, Enter, Esc). Rotate, delete, duplicate, insert blank
+(neighbour size, A4, Letter), insert pages from another PDF (with a page
+range and position) and move are each **one** named undo step; "Extract to
+new tab" creates a new, unsaved document.
+
+**What survives page operations** (pdf-lib works on the page objects
+themselves, so most links stay intact):
+
+| Operation | Bookmarks & links | Other |
+|---|---|---|
+| Move, rotate | Follow their pages (same page objects) | — |
+| Delete | Bookmarks to deleted pages are removed (a parent keeps its children); links *to* deleted pages from other pages remain but go nowhere | Form fields that only lived on deleted pages are removed |
+| Duplicate | Copies keep their own links; bookmarks still point at the original | Form fields on a duplicated page are copied as widgets but aren't separate fields |
+| Insert from PDF | Only the pages come over; the other file's bookmarks aren't imported | Its form fields, attachments and page labels aren't imported |
+| Extract to new tab | Pages only (bookmarks aren't carried over) | Form fields and page labels aren't carried over |
+
+Page labels are stored as ranges by position, so after reordering they label
+positions, not the pages they used to.
+
 ### Find and navigation
 
 - `view/text-index.js` — indexes each page's text in the background (yielding
@@ -165,6 +191,9 @@ dist/pdf-editor.html   the deliverable
   text layer's spans. `view/find-controller.js` searches the index as pages
   arrive ("n of m+" while indexing), highlights matches in rendered text
   layers, and scrolls the current match into view.
+- `ui/thumbnails.js` — thumbnails cached per tab, keyed by PDF page object +
+  rotation; `ui/canvas-encode.js` encodes them (Chromium's `toBlob()` can stall
+  for seconds on a busy page, so it falls back to `toDataURL()`).
 - `view/history.js` — back/forward (Alt+← / Alt+→) after link, bookmark,
   thumbnail and page-box jumps.
 - `ui/panels/pages-panel.js` (lazy thumbnails, cached per tab as compressed
@@ -246,6 +275,9 @@ it's skipped and so are its tests.
   they open read-only.
 - Writing back to the original file needs the File System Access API
   (Chrome/Edge). Elsewhere, Save downloads a copy.
+
+- In Chromium, `localStorage` for `file://` pages can come back empty after a
+  reload, so preferences are mirrored to IndexedDB and restored at startup.
 
 ## Privacy
 

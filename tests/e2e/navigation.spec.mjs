@@ -327,7 +327,7 @@ test('screenshots: find and navigation in light and dark', async ({ page }) => {
     await page.locator('.rail').getByRole('button', { name: 'Pages' }).click();
     await page.waitForTimeout(400);
     await shot(page, `m3-labels-${theme}`);
-    await page.evaluate(() => { localStorage.clear(); indexedDB.deleteDatabase('pdf-editor'); });
+    await page.evaluate(() => window.pdfEditor.storage.clearAll());
   }
 });
 

@@ -9,13 +9,17 @@ import { registerPagesPanel } from './ui/panels/pages-panel.js';
 import { registerBookmarksPanel } from './ui/panels/bookmarks-panel.js';
 import { registerHistoryPanel } from './ui/panels/history-panel.js';
 import { registerHistoryTool } from './tools/history.js';
+import { registerOrganizeTools } from './tools/organize.js';
 import * as registry from './tools/registry.js';
 import * as commands from './ui/commands.js';
 import * as libs from './core/libs.js';
 import { LIBS } from './core/libs.config.js';
 import { VERSION } from './core/version.js';
+import { loadPrefs } from './core/prefs.js';
+import { clearAllStores } from './core/idb.js';
 
-function start() {
+async function start() {
+  await loadPrefs();
   setLocale('en');
   initTheme();
   registerCatalogue();
@@ -25,6 +29,7 @@ function start() {
   registerBookmarksPanel();
   registerHistoryPanel();
   registerHistoryTool();
+  registerOrganizeTools();
 
   const root = document.getElementById('app');
   const app = new App(root);
@@ -33,7 +38,10 @@ function start() {
   document.documentElement.dataset.ready = 'true';
 
   // A small, stable handle for diagnostics and end-to-end tests.
-  window.pdfEditor = Object.freeze({ version: VERSION, app, registry, commands, libs, libsConfig: LIBS });
+  window.pdfEditor = Object.freeze({
+    version: VERSION, app, registry, commands, libs, libsConfig: LIBS,
+    storage: { clearAll: async () => { try { localStorage.clear(); } catch { /* ignore */ } await clearAllStores(); } },
+  });
 }
 
 start();

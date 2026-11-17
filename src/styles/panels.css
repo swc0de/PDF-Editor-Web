@@ -213,3 +213,140 @@
 
 /* Close-with-unsaved-changes dialog: "Don't save" sits on the left. */
 .unsaved-dialog .dialog-actions .btn:first-child { margin-right: auto; }
+
+/* ------------------------------------------------- Organize pages */
+.organizer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+}
+.organizer[hidden] { display: none; }
+.viewer[hidden] { display: none; }
+.org-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  min-height: 44px;
+  padding: 6px var(--space-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  flex-wrap: wrap;
+}
+.org-title { display: flex; align-items: center; gap: 6px; margin-right: var(--space-2); font-size: var(--text-md); }
+.org-title .icon { color: var(--accent-text); }
+.org-count { color: var(--text-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; min-width: 9ch; }
+.org-sep { width: 1px; height: 20px; margin: 0 var(--space-1); background: var(--border); }
+.org-spacer { flex: 1; }
+.org-toolbar > .icon { color: var(--text-muted); }
+.org-btn.icon-btn { width: var(--control-h-sm); height: var(--control-h-sm); }
+.org-btn:not(.icon-btn) { height: var(--control-h-sm); border-color: transparent; background: transparent; }
+.org-btn:not(.icon-btn):hover:not(:disabled) { background: var(--hover); }
+.org-menu-btn { height: var(--control-h-sm); gap: 4px; padding: 0 var(--space-2); }
+.org-size { width: 110px; accent-color: var(--accent); margin-right: var(--space-2); }
+.organizer[data-busy="true"] .org-scroller { cursor: progress; }
+.org-scroller { position: relative; flex: 1; min-height: 0; overflow: auto; }
+.org-spacer-box { position: relative; }
+.org-grid { position: absolute; inset: 0; outline: none; }
+.org-grid:focus-visible .org-tile.focused .org-frame { box-shadow: var(--focus-ring); }
+.org-tile {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+.org-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  border-radius: var(--radius);
+  outline: 2px solid transparent;
+  outline-offset: 4px;
+  transition: outline-color var(--dur-fast);
+}
+.org-page {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: var(--page-shadow);
+  color: #7a1426;
+}
+.org-page img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.org-tile:hover .org-frame { outline-color: var(--border-strong); }
+.org-tile[aria-selected="true"] .org-frame { outline-color: var(--accent); background: var(--accent-soft); }
+.org-label { color: var(--text-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.org-tile[aria-selected="true"] .org-label { color: var(--accent-text); font-weight: 600; }
+.org-check {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 0 2px var(--canvas);
+}
+.org-tile[aria-selected="true"] .org-check { display: grid; }
+.org-tile.drag-source { opacity: .4; }
+.organizer.dragging, .organizer.dragging * { cursor: grabbing !important; }
+.org-drop {
+  position: absolute;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+  pointer-events: none;
+}
+.org-drop[hidden] { display: none; }
+.org-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 300;
+  width: 72px;
+  pointer-events: none;
+}
+.org-ghost img, .org-ghost-blank { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: contain; background: #fff; box-shadow: var(--popover-shadow); }
+.org-ghost-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 22px;
+  text-align: center;
+}
+.org-help {
+  flex: none;
+  margin: 0;
+  padding: 6px var(--space-3);
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* Insert-from-PDF dialog */
+.insert-file { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.insert-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.insert-where { display: flex; gap: var(--space-2); }
+.insert-where select { flex: 1; }
+.insert-page-no { width: 90px; }

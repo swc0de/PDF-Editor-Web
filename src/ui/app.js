@@ -17,11 +17,13 @@ import { openPalette } from './palette.js';
 import { toast } from './toast.js';
 import { alertDialog, confirmDialog, openDialog, promptPassword } from './dialog.js';
 import { saveTab } from './save.js';
+import { canvasToBlob } from './canvas-encode.js';
 import { writeAutosave, deleteAutosave, listAutosaves } from '../core/autosave.js';
 import { handleShortcut, listCommands, primaryShortcut, commandLabel } from './commands.js';
 import { DocTab } from './doc-tab.js';
 import { createFindBar } from './find-bar.js';
 import { FindController } from '../view/find-controller.js';
+import { Organizer } from './organize/organizer.js';
 import { getPdfjs, openPdf, isPasswordCancel } from '../view/pdfjs.js';
 import { runTool, getTool, listTools } from '../tools/registry.js';
 import { getSetting, getArrangement, saveArrangement, resetArrangement, onSettingsChange } from '../core/settings.js';
@@ -334,7 +336,7 @@ export class App extends EventTarget {
    * @param {string} name
    * @param {{ password?: string, view?: object }} [o]
    */
-  async openBytes(bytes, name, { password = null, view = null, handle = null, clean = true, autosaveId = null } = {}) {
+  async openBytes(bytes, name, { password = null, view = null, handle = null, clean = true, autosaveId = null, openLabel = null } = {}) {
     const id = await contentId(bytes);
     const existing = this.tabs.find((tab) => tab.contentId === id);
     if (existing) {
@@ -372,6 +374,7 @@ export class App extends EventTarget {
       fileHandle: handle,
       clean,
       autosaveId,
+      openLabel,
     });
     tab.viewer.addEventListener('externallink', (e) => this.openExternalLink(e.detail.url));
     tab.addEventListener('dirtychange', () => {
@@ -417,7 +420,7 @@ export class App extends EventTarget {
       canvas.width = Math.round(viewport.width);
       canvas.height = Math.round(viewport.height);
       await page.render({ canvas, viewport }).promise;
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      const blob = await canvasToBlob(canvas);
       canvas.width = 0;
       if (blob) await setRecentThumbnail(tab.contentId, blob);
     } catch {
@@ -625,6 +628,35 @@ export class App extends EventTarget {
 
   listRecoverable() {
     return listAutosaves();
+  }
+
+  // ---------------------------------------------------------- organize
+
+  openOrganizer() {
+    const tab = this.activeTab;
+    if (!tab) {
+      toast(t('organize.needsDocument'));
+      return null;
+    }
+    this.closeFind();
+    tab.organizer ??= new Organizer(this, tab);
+    tab.organizer.show();
+    this.dispatchEvent(new CustomEvent('organizerchange'));
+    return tab.organizer;
+  }
+
+  closeOrganizer() {
+    const tab = this.activeTab;
+    const org = tab?.organizer;
+    if (!org?.isOpen) return;
+    org.hide();
+    tab.viewer.goToPage(org.focus + 1);
+    tab.viewer.focus();
+    this.dispatchEvent(new CustomEvent('organizerchange'));
+  }
+
+  get organizerOpen() {
+    return !!this.activeTab?.organizer?.isOpen;
   }
 
   // -------------------------------------------------------------- find

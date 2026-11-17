@@ -74,6 +74,17 @@ export async function applyOp({ docId, version, newVersion, op, args, getBytes }
   return { bytes: new Uint8Array(reply.bytes), pageCount: reply.pageCount, affected: reply.affected, value: reply.value };
 }
 
+/** Run a read-only op (e.g. exportPages) against the document at `version`. */
+export async function runQuery({ docId, version, op, args, getBytes }) {
+  let reply = await callWorker({ type: 'run', docId, version, op, args });
+  if (reply.needBytes) {
+    const buffer = getBytes().slice().buffer;
+    reply = await callWorker({ type: 'run', docId, version, op, args, bytes: buffer }, [buffer]);
+  }
+  if (!reply.ok) throw new WorkerOpError(reply.error ?? { message: 'operation failed' });
+  return reply.value;
+}
+
 export function closeWorkerDoc(docId) {
   if (workerPromise) callWorker({ type: 'close', docId }).catch(() => {});
 }

@@ -5,10 +5,11 @@
 // and restored explicitly.
 import { h } from './dom.js';
 import { Viewer } from '../view/viewer.js';
-import { openPdf } from '../view/pdfjs.js';
+import { openPdf, destroyPdf } from '../view/pdfjs.js';
 import { createStatusBar } from './statusbar.js';
 import { DocumentModel } from '../core/document-model.js';
 import { t } from '../i18n/index.js';
+import { invalidateThumbs } from './thumbnails.js';
 
 let nextId = 1;
 
@@ -26,7 +27,7 @@ export class DocTab extends EventTarget {
    * @param {boolean} [o.clean]  false: starts with unsaved changes (recovered work)
    * @param {string} [o.autosaveId]
    */
-  constructor({ name, bytes, contentId, pdf, pdfjs, password, view, fileHandle = null, clean = true, autosaveId = null }) {
+  constructor({ name, bytes, contentId, pdf, pdfjs, password, view, fileHandle = null, clean = true, autosaveId = null, openLabel = null }) {
     super();
     this.id = `t${nextId++}`;
     this.name = name;
@@ -42,7 +43,7 @@ export class DocTab extends EventTarget {
     this.model = new DocumentModel({
       bytes,
       pageCount: pdf.numPages,
-      openLabel: clean ? t('history.opened', { name }) : t('history.recovered', { name }),
+      openLabel: openLabel ?? (clean ? t('history.opened', { name }) : t('history.recovered', { name })),
       clean,
       // pdf-lib can't edit encrypted files.
       readOnly: password ? 'encrypted' : null,
@@ -93,19 +94,12 @@ export class DocTab extends EventTarget {
     const old = this.pdf;
     this.pdf = doc;
     await this.viewer.replaceDocument(doc, { affected, structural });
-    old.loadingTask.destroy();
+    destroyPdf(old);
     // Derived data that may be stale now.
     this.find?.destroy();
     this.find = null;
     this.outlinePromise = null;
-    if (this.thumbs) {
-      const drop = affected && !structural ? affected : [...this.thumbs.keys()];
-      for (const i of drop) {
-        const url = this.thumbs.get(i);
-        if (url) URL.revokeObjectURL(url);
-        this.thumbs.delete(i);
-      }
-    }
+    invalidateThumbs(this, { affected, structural });
     this.dispatchEvent(new CustomEvent('docchange', { detail: { affected, structural } }));
   }
 
@@ -146,8 +140,9 @@ export class DocTab extends EventTarget {
   destroy() {
     this.dispatchEvent(new CustomEvent('destroy'));
     this.find?.destroy();
+    this.organizer?.destroy();
     this.viewer.destroy();
-    this.pdf.loadingTask.destroy();
+    destroyPdf(this.pdf);
     this.model.dispose();
     this.host.remove();
   }

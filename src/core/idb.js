@@ -2,16 +2,16 @@
 // (private windows, disabled site data) the app keeps working without it.
 
 const DB_NAME = 'pdf-editor';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
-// All object stores, created up front so later milestones don't need a
-// schema migration: recents (metadata + thumbnail), recentFiles (bytes),
-// autosave (M4), signatures (M9).
+// Object stores: recents (metadata + thumbnail), recentFiles (bytes),
+// autosave (M4), signatures (M9), prefs (v2). Upgrades only add stores.
 const STORES = {
   recents: { keyPath: 'id' },
   recentFiles: { keyPath: 'id' },
   autosave: { keyPath: 'id' },
   signatures: { keyPath: 'id' },
+  prefs: { keyPath: 'key' }, // mirror of localStorage preferences (v2)
 };
 
 let dbPromise = null;
@@ -60,6 +60,17 @@ async function withStore(name, mode, fn) {
     tx.onabort = () => reject(tx.error ?? new Error('transaction aborted'));
   });
   return result;
+}
+
+/** Empty every store (used by tests and for "forget everything"). */
+export async function clearAllStores() {
+  for (const name of Object.keys(STORES)) {
+    try {
+      await withStore(name, 'readwrite', (s) => promisify(s.clear()));
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 export const idb = {

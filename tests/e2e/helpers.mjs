@@ -128,7 +128,7 @@ export function viewerState(page) {
  * give recent writes a moment first.
  */
 export async function reloadApp(page) {
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(600);
   await page.reload();
   await page.waitForSelector('html[data-ready="true"]');
 }

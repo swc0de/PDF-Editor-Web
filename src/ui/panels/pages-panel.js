@@ -6,44 +6,15 @@ import { t } from '../../i18n/index.js';
 import { implementPanel } from '../panels.js';
 import { getPref, setPref } from '../../core/prefs.js';
 import { rotatedSize } from '../../view/layout.js';
+import { getThumb } from '../thumbnails.js';
 
 const BASE_WIDTH = 120; // CSS px at 100%
-const RENDER_WIDTH = 180; // render once at the 150% size; smaller sizes scale down
 const SIZE = { min: 50, max: 150, step: 10, default: 100 };
-
-/** Per-tab cache of rendered thumbnails: page index → object URL. */
-function thumbCache(tab) {
-  if (!tab.thumbs) {
-    tab.thumbs = new Map();
-    tab.addEventListener('destroy', () => {
-      for (const url of tab.thumbs.values()) URL.revokeObjectURL(url);
-      tab.thumbs.clear();
-    });
-  }
-  return tab.thumbs;
-}
-
-async function renderThumb(tab, index) {
-  const page = await tab.pdf.getPage(index + 1);
-  const rotation = (page.rotate + tab.viewer.rotation) % 360;
-  const vp1 = page.getViewport({ scale: 1, rotation });
-  const scale = (RENDER_WIDTH * Math.min(2, window.devicePixelRatio || 1)) / vp1.width;
-  const viewport = page.getViewport({ scale, rotation });
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(viewport.width));
-  canvas.height = Math.max(1, Math.round(viewport.height));
-  await page.render({ canvas, viewport }).promise;
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-  canvas.width = 0;
-  canvas.height = 0;
-  return blob ? URL.createObjectURL(blob) : null;
-}
 
 export function registerPagesPanel() {
   implementPanel('pages', {
     render(container, tab) {
       const viewer = tab.viewer;
-      const cache = thumbCache(tab);
       let size = getPref('thumbSize', SIZE.default);
       let disposed = false;
 
@@ -95,12 +66,8 @@ export function registerPagesPanel() {
         queue.delete(it);
         busy = true;
         try {
-          let url = cache.get(it.index);
-          if (!url) {
-            url = await renderThumb(tab, it.index);
-            if (url) cache.set(it.index, url);
-          }
-          if (!disposed && url) show(it, url);
+          const url = await getThumb(tab, it.index);
+          if (!disposed && url && it.state === 'empty') show(it, url);
         } catch {
           if (!disposed) {
             it.state = 'error';
@@ -121,11 +88,9 @@ export function registerPagesPanel() {
       const observer = new IntersectionObserver((entries) => {
         for (const entry of entries) {
           const it = items[Number(entry.target.dataset.page) - 1];
+          if (!it) continue;
           if (entry.isIntersecting) {
-            if (it.state !== 'empty') continue;
-            const cached = cache.get(it.index);
-            if (cached) show(it, cached);
-            else queue.add(it);
+            if (it.state === 'empty') queue.add(it);
           } else {
             queue.delete(it);
           }
@@ -181,33 +146,24 @@ export function registerPagesPanel() {
 
       const onPage = () => syncCurrent();
       let lastRotation = viewer.rotation;
+      const reset = (it) => {
+        it.state = 'empty';
+        it.frame.replaceChildren();
+        delete it.el.dataset.state;
+        observer.unobserve(it.el);
+        observer.observe(it.el);
+      };
       const onLayout = () => {
         if (viewer.rotation === lastRotation) return;
         lastRotation = viewer.rotation;
-        // Rotation changes thumbnails: drop the cache and re-render.
-        for (const url of cache.values()) URL.revokeObjectURL(url);
-        cache.clear();
-        for (const it of items) {
-          it.state = 'empty';
-          it.frame.replaceChildren();
-          delete it.el.dataset.state;
-          observer.unobserve(it.el);
-          observer.observe(it.el);
-        }
+        items.forEach(reset); // the cache is keyed by rotation: just redraw
         applySize();
       };
       const onSizes = () => applySize();
       // The document changed (edit/undo): re-render the affected thumbnails.
       const onDocChange = (e) => {
         const affected = e.detail.affected ? new Set(e.detail.affected) : null;
-        for (const it of items) {
-          if (affected && !affected.has(it.index)) continue;
-          it.state = 'empty';
-          it.frame.replaceChildren();
-          delete it.el.dataset.state;
-          observer.unobserve(it.el);
-          observer.observe(it.el);
-        }
+        for (const it of items) if (!affected || affected.has(it.index)) reset(it);
         applySize();
       };
       tab.addEventListener('docchange', onDocChange);
