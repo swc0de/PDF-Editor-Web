@@ -6,8 +6,8 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 |---|---|---|
 | M0 | Scaffold, build and test harness | approved |
 | M1 | Core viewer | approved |
-| M2 | App shell, tabs, home screen | awaiting approval |
-| M3 | Find and navigation | todo |
+| M2 | App shell, tabs, home screen | approved |
+| M3 | Find and navigation | in progress |
 | M4 | Document model, undo/redo, save, autosave | todo |
 | M5 | Organize pages | todo |
 | M6 | Combine and split | todo |
@@ -77,7 +77,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   is clicked (Playwright filechooser event races under parallel load).
 - **Known limitations:** see README. No tabs/menus yet (M2). Page labels in M3.
 
-### M2 — App shell, tabs, home screen (awaiting approval)
+### M2 — App shell, tabs, home screen (approved)
 - **Structure:** `ui/app.js` (controller), `ui/doc-tab.js` (per-document tab), `ui/tabs.js` (tablist),
   `ui/menubar.js` + `ui/app-menus.js`, `ui/app-commands.js` (all commands), `ui/palette.js` + `ui/fuzzy.js`,
   `ui/tools-panel.js`, `ui/side-panel.js` + `ui/panels.js` (panel registry: `implementPanel(id, {render})`
