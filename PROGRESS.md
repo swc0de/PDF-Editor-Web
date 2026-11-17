@@ -8,8 +8,8 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M1 | Core viewer | approved |
 | M2 | App shell, tabs, home screen | approved |
 | M3 | Find and navigation | approved |
-| M4 | Document model, undo/redo, save, autosave | awaiting approval |
-| M5 | Organize pages | todo |
+| M4 | Document model, undo/redo, save, autosave | approved |
+| M5 | Organize pages | in progress |
 | M6 | Combine and split | todo |
 | M7 | Properties, attachments, layers | todo |
 | M8 | Comments and annotations | todo |
@@ -117,7 +117,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 - **Tests:** `navigation.spec.mjs` (13). Suite total 64.
 - **Limitations:** no ligature/diacritic/hyphen normalization in search (README).
 
-### M4 — Document model, undo/redo, save, autosave (awaiting approval)
+### M4 — Document model, undo/redo, save, autosave (approved)
 - **Flow:** command → `app.edit(tab, op, args, label)` → `DocumentModel.execute` (core/document-model.js,
   serial queue) → `applyOp` (core/pdf-worker.js) → worker (core/worker/worker-main.js; pdf-lib UMD fetched
   on main thread and prepended; classic Blob worker) → new bytes → `UndoHistory.push` → `onChange` =
