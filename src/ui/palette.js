@@ -34,10 +34,13 @@ let openDialog = null;
 
 /** @param {() => PaletteItem[]} getItems */
 export function openPalette(getItems) {
-  if (openDialog) {
+  if (openDialog?.open) {
     openDialog.querySelector('input').focus();
     return;
   }
+  // A palette that was just closed may not have fired 'close' yet.
+  openDialog?.remove();
+  openDialog = null;
   const items = getItems();
   const input = h('input.palette-input', {
     type: 'text',
@@ -152,7 +155,7 @@ export function openPalette(getItems) {
   dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
   dialog.addEventListener('close', () => {
     dialog.remove();
-    openDialog = null;
+    if (openDialog === dialog) openDialog = null;
   });
   document.body.append(dialog);
   dialog.showModal();

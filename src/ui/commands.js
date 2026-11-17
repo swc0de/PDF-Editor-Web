@@ -41,6 +41,11 @@ export function runCommand(id, ...args) {
   return true;
 }
 
+/** The label to show: a command may compute it (e.g. "Undo Rotate page 3"). */
+export function commandLabel(c, t) {
+  return c.getLabel?.() ?? t(c.label);
+}
+
 export function primaryShortcut(id) {
   const s = commands.get(id)?.shortcut;
   return Array.isArray(s) ? s[0] : (s ?? null);
@@ -58,6 +63,8 @@ export function handleShortcut(event) {
     if (editable && !/Mod|Ctrl|Alt|(^|\+)F\d+$/.test(hit)) continue;
     // Arrow-key shortcuts (e.g. Alt+← for Back) would break caret movement.
     if (editable && /Arrow/.test(hit)) continue;
+    // Commands like Undo leave text fields their native behaviour.
+    if (editable && c.inInput === false) continue;
     if (!c.enabled()) continue;
     event.preventDefault();
     c.run();

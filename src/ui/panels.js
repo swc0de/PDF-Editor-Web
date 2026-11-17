@@ -9,6 +9,7 @@ export const PANELS = [
   { id: 'comments', icon: 'messageSquare', milestone: 'M8' },
   { id: 'attachments', icon: 'paperclip', milestone: 'M7' },
   { id: 'properties', icon: 'info', milestone: 'M7' },
+  { id: 'history', icon: 'history', milestone: 'M4' },
 ].map((p) => ({ ...p, label: `panel.${p.id}.label`, render: null }));
 
 export function getPanel(id) {

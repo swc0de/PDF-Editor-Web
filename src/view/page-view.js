@@ -328,6 +328,19 @@ export class PageView {
     this.tileKey = null;
   }
 
+  /** Forget everything about this page (its content changed). */
+  reset() {
+    this.release();
+    this.proxy = null;
+    if (this.error) {
+      this.error = null;
+      this.el.querySelector('.page-error')?.remove();
+      this.el.prepend(this.placeholder);
+      this.placeholder.hidden = false;
+      this.el.dataset.state = 'placeholder';
+    }
+  }
+
   /** Stop any in-flight render. */
   cancel() {
     this.generation++;

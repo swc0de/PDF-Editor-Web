@@ -1,4 +1,4 @@
-import { test, expect, openApp, shot } from './helpers.mjs';
+import { test, expect, openApp, shot, reloadApp } from './helpers.mjs';
 import { LIBS } from '../../src/core/libs.config.js';
 
 test('loads from file:// with the right title and no console errors', async ({ page }) => {
@@ -11,7 +11,7 @@ test('loads from file:// with the right title and no console errors', async ({ p
 });
 
 // Tools built so far; everything else must still say "Coming soon".
-const READY = ['read-mode', 'find', 'bookmarks', 'page-thumbnails'];
+const READY = ['read-mode', 'find', 'bookmarks', 'page-thumbnails', 'undo-history'];
 
 test('tool registry holds the complete catalogue; unbuilt tools are "Coming soon"', async ({ page }) => {
   await openApp(page);
@@ -66,8 +66,7 @@ test('first run follows prefers-color-scheme; the toggle is remembered', async (
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.getByRole('button', { name: 'Switch to light theme' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await page.reload();
-  await page.waitForSelector('html[data-ready="true"]');
+  await reloadApp(page);
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   // Background actually comes from the theme tokens.
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);

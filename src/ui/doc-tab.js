@@ -1,10 +1,14 @@
-// One open document: its pdf.js document, viewer, status bar and view state.
+// One open document: its editable model (bytes + undo history), the pdf.js
+// document for the current bytes, the viewer, status bar and view state.
 // Hidden tabs keep their viewer in the DOM (display:none), so zoom, scroll,
 // layout and rendered pages survive switching; the text selection is saved
 // and restored explicitly.
 import { h } from './dom.js';
 import { Viewer } from '../view/viewer.js';
+import { openPdf } from '../view/pdfjs.js';
 import { createStatusBar } from './statusbar.js';
+import { DocumentModel } from '../core/document-model.js';
+import { t } from '../i18n/index.js';
 
 let nextId = 1;
 
@@ -14,22 +18,40 @@ export class DocTab extends EventTarget {
    * @param {string} o.name
    * @param {Uint8Array} o.bytes
    * @param {string} o.contentId
-   * @param {object} o.pdf       PDFDocumentProxy
+   * @param {object} o.pdf       PDFDocumentProxy for `bytes`
    * @param {object} o.pdfjs
    * @param {string|null} o.password
    * @param {object} o.view      initial view: { zoom, mode, cover, rotation, page?, anchor? }
+   * @param {any} [o.fileHandle] FileSystemFileHandle to save back to
+   * @param {boolean} [o.clean]  false: starts with unsaved changes (recovered work)
+   * @param {string} [o.autosaveId]
    */
-  constructor({ name, bytes, contentId, pdf, pdfjs, password, view }) {
+  constructor({ name, bytes, contentId, pdf, pdfjs, password, view, fileHandle = null, clean = true, autosaveId = null }) {
     super();
     this.id = `t${nextId++}`;
     this.name = name;
-    this.bytes = bytes;
     this.contentId = contentId;
+    this.autosaveId = autosaveId ?? contentId;
     this.pdf = pdf;
     this.password = password;
-    this.dirty = false;
     this.savedRange = null;
     this.initialView = view;
+    this.lastAutosaved = null;
+    this.applying = Promise.resolve();
+
+    this.model = new DocumentModel({
+      bytes,
+      pageCount: pdf.numPages,
+      openLabel: clean ? t('history.opened', { name }) : t('history.recovered', { name }),
+      clean,
+      // pdf-lib can't edit encrypted files.
+      readOnly: password ? 'encrypted' : null,
+      onChange: (change) => this.applyChange(change),
+    });
+    this.model.fileHandle = fileHandle;
+    this.model.addEventListener('dirtychange', () => this.dispatchEvent(new CustomEvent('dirtychange')));
+    this.model.addEventListener('historychange', () => this.dispatchEvent(new CustomEvent('historychange')));
+
     this.host = h('div.viewer-host', {
       id: `tabpanel-${this.id}`,
       role: 'tabpanel',
@@ -47,6 +69,14 @@ export class DocTab extends EventTarget {
     this.statusbar = createStatusBar(this.viewer);
   }
 
+  get bytes() {
+    return this.model.bytes;
+  }
+
+  get dirty() {
+    return this.model.dirty;
+  }
+
   async init() {
     await this.viewer.init();
     const v = this.initialView;
@@ -54,10 +84,34 @@ export class DocTab extends EventTarget {
     else if (v.page > 1) this.viewer.goToPage(v.page);
   }
 
-  setDirty(dirty) {
-    if (this.dirty === dirty) return;
-    this.dirty = dirty;
-    this.dispatchEvent(new CustomEvent('dirtychange'));
+  /**
+   * The model moved to another state: load its bytes into pdf.js and let the
+   * viewer re-render only what changed.
+   */
+  async applyChange({ to, affected, structural }) {
+    const { doc } = await openPdf(to.bytes, { password: this.password, askPassword: async () => null });
+    const old = this.pdf;
+    this.pdf = doc;
+    await this.viewer.replaceDocument(doc, { affected, structural });
+    old.loadingTask.destroy();
+    // Derived data that may be stale now.
+    this.find?.destroy();
+    this.find = null;
+    this.outlinePromise = null;
+    if (this.thumbs) {
+      const drop = affected && !structural ? affected : [...this.thumbs.keys()];
+      for (const i of drop) {
+        const url = this.thumbs.get(i);
+        if (url) URL.revokeObjectURL(url);
+        this.thumbs.delete(i);
+      }
+    }
+    this.dispatchEvent(new CustomEvent('docchange', { detail: { affected, structural } }));
+  }
+
+  rename(name) {
+    this.name = name;
+    this.dispatchEvent(new CustomEvent('rename'));
   }
 
   /** Everything needed to reopen this tab where it was. */
@@ -94,6 +148,7 @@ export class DocTab extends EventTarget {
     this.find?.destroy();
     this.viewer.destroy();
     this.pdf.loadingTask.destroy();
+    this.model.dispose();
     this.host.remove();
   }
 }

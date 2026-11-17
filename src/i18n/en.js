@@ -183,6 +183,8 @@ export const en = {
   'menu.tab': 'Tabs',
   'menu.app': 'App',
   'menu.panel': 'Panels',
+  'menu.page': 'Page',
+  'menu.find': 'Find',
 
   // More commands
   'command.tab.close': 'Close tab',
@@ -217,9 +219,10 @@ export const en = {
   'tabs.closeNamed': 'Close {name}',
   'tabs.closeOthers': 'Close others',
   'tabs.reopen': 'Reopen closed tab',
-  'close.dirty.title': 'Close “{name}”?',
-  'close.dirty.message': 'This document has unsaved changes. They will be lost if you close it.',
-  'close.dirty.discard': 'Close without saving',
+  'close.dirty.title': 'Save changes to “{name}”?',
+  'close.dirty.message': 'Your changes will be lost if you don’t save them.',
+  'close.dirty.save': 'Save',
+  'close.dirty.dontSave': 'Don’t save',
 
   // Tools panel
   'tools.title': 'Tools',
@@ -342,4 +345,41 @@ export const en = {
   'bookmarks.untitled': 'Untitled',
   'bookmarks.matches': '{n} matching',
   'bookmarks.noMatch': 'No bookmarks match.',
+
+  // Saving, undo, editing
+  'command.file.save': 'Save',
+  'command.file.saveAs': 'Save As…',
+  'command.edit.undo': 'Undo',
+  'command.edit.redo': 'Redo',
+  'command.edit.undoNamed': 'Undo {step}',
+  'command.edit.redoNamed': 'Redo {step}',
+  'command.page.rotateRight': 'Rotate current page 90°',
+  'command.page.rotateLeft': 'Rotate current page 90° left',
+  'step.rotatePage': 'Rotate page {page}',
+  'step.rotatePageLeft': 'Rotate page {page} left',
+  'edit.failed': 'That change couldn’t be made: {message}',
+  'edit.readOnly.encrypted': 'Password-protected PDFs can’t be edited yet. You can still read, search and print them.',
+  'save.saved': 'Saved “{name}”.',
+  'save.downloaded': '“{name}” was downloaded.',
+  'save.writeFailed': 'Couldn’t write to the file ({message}). Choose where to save instead.',
+
+  // Undo history
+  'panel.history.label': 'Undo History',
+  'panel.history.noDocument': 'Open a PDF to see its undo history.',
+  'command.panel.history': 'Show Undo History panel',
+  'history.opened': 'Opened {name}',
+  'history.recovered': 'Recovered {name}',
+  'history.saved': 'Saved',
+  'history.trimmed': '{n} earlier steps were removed to save memory.',
+
+  // Recovery
+  'recovery.title': 'Recover unsaved changes',
+  'recovery.text': 'These documents had changes that weren’t saved when PDF Editor was last closed.',
+  'recovery.savedAt': 'autosaved {time}',
+  'recovery.steps': '{n} changes',
+  'recovery.step': '1 change',
+  'recovery.recover': 'Recover',
+  'recovery.discard': 'Discard',
+  'recovery.discardTitle': 'Discard changes to “{name}”?',
+  'recovery.discardMessage': 'The unsaved changes will be deleted. This can’t be undone.',
 };

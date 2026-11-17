@@ -1,13 +1,13 @@
 // Menu bar contents, built from commands each time a menu opens.
 import { t } from '../i18n/index.js';
-import { getCommand, primaryShortcut } from './commands.js';
+import { getCommand, primaryShortcut, commandLabel } from './commands.js';
 import { listTools } from '../tools/registry.js';
 
 function item(id, { role = 'menuitem', icon: withIcon = true } = {}) {
   const c = getCommand(id);
   return {
     id,
-    label: t(c.label),
+    label: commandLabel(c, t),
     icon: withIcon ? c.icon : undefined,
     shortcut: primaryShortcut(id),
     role,
@@ -25,6 +25,9 @@ export function buildMenus(app) {
       items: () => [
         item('file.open'),
         'separator',
+        item('file.save'),
+        item('file.saveAs'),
+        'separator',
         item('tab.close'),
         item('tab.closeOthers'),
         item('tab.reopen'),
@@ -37,6 +40,12 @@ export function buildMenus(app) {
       id: 'edit',
       label: t('menu.edit'),
       items: () => [
+        item('edit.undo'),
+        item('edit.redo'),
+        'separator',
+        item('page.rotateRight'),
+        item('page.rotateLeft'),
+        'separator',
         item('edit.copy'),
         item('edit.selectPageText'),
         'separator',

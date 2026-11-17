@@ -44,11 +44,11 @@ export async function listRecents() {
  * Remember a file. `thumbnail` is an optional image Blob.
  * Returns false if storage isn't available.
  */
-export async function addRecent({ id, name, bytes, pageCount, thumbnail = null }) {
+export async function addRecent({ id, name, bytes, pageCount, thumbnail = null, handle = null }) {
   try {
     const stored = bytes.length <= MAX_STORED_BYTES;
     const existing = await idb.get('recents', id);
-    await idb.put('recents', {
+    const record = {
       id,
       name,
       size: bytes.length,
@@ -56,7 +56,14 @@ export async function addRecent({ id, name, bytes, pageCount, thumbnail = null }
       lastOpened: Date.now(),
       stored,
       thumbnail: thumbnail ?? existing?.thumbnail ?? null,
-    });
+      // A FileSystemFileHandle lets "Save" write back after reopening.
+      handle: handle ?? existing?.handle ?? null,
+    };
+    try {
+      await idb.put('recents', record);
+    } catch {
+      await idb.put('recents', { ...record, handle: null }); // handle not storable here
+    }
     if (stored) await idb.put('recentFiles', { id, bytes: new Blob([bytes], { type: 'application/pdf' }) });
     await prune();
     emit();

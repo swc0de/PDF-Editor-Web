@@ -121,3 +121,14 @@ export function pageIn(page, n) {
 export function viewerState(page) {
   return page.evaluate(() => window.pdfEditor.app.viewer?.state ?? null);
 }
+
+/**
+ * Reload the app. Chromium commits localStorage to its storage service
+ * asynchronously, and a reload under heavy parallel load can race that, so
+ * give recent writes a moment first.
+ */
+export async function reloadApp(page) {
+  await page.waitForTimeout(250);
+  await page.reload();
+  await page.waitForSelector('html[data-ready="true"]');
+}

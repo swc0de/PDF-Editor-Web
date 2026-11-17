@@ -4,6 +4,7 @@ import { toggleTheme } from './theme.js';
 import { openPreferences } from './preferences.js';
 import { openAbout, openShortcuts } from './about.js';
 import { PANELS } from './panels.js';
+import { t } from '../i18n/index.js';
 
 export function registerAppCommands(app) {
   const hasDoc = () => !!app.activeTab;
@@ -18,6 +19,30 @@ export function registerAppCommands(app) {
   def({ id: 'tab.next', label: 'command.tab.next', shortcut: 'Ctrl+PageDown', enabled: () => app.tabs.length > 0, run: () => app.nextTab(1) });
   def({ id: 'tab.prev', label: 'command.tab.prev', shortcut: 'Ctrl+PageUp', enabled: () => app.tabs.length > 0, run: () => app.nextTab(-1) });
   def({ id: 'app.home', label: 'command.app.home', icon: 'home', run: () => app.activate(null) });
+
+  // Save
+  def({ id: 'file.save', label: 'command.file.save', icon: 'save', shortcut: 'Mod+S', enabled: hasDoc, run: () => app.save() });
+  def({ id: 'file.saveAs', label: 'command.file.saveAs', shortcut: 'Mod+Shift+S', enabled: hasDoc, run: () => app.save({ as: true }) });
+
+  // Undo / redo
+  const model = () => app.activeTab?.model;
+  def({
+    id: 'edit.undo', label: 'command.edit.undo', icon: 'undo', shortcut: 'Mod+Z', inInput: false,
+    enabled: () => !!model()?.canUndo,
+    getLabel: () => (model()?.canUndo ? t('command.edit.undoNamed', { step: model().history.undoEntry.label }) : t('command.edit.undo')),
+    run: () => app.undo(),
+  });
+  def({
+    id: 'edit.redo', label: 'command.edit.redo', icon: 'redo', shortcut: ['Mod+Shift+Z', 'Mod+Y'], inInput: false,
+    enabled: () => !!model()?.canRedo,
+    getLabel: () => (model()?.canRedo ? t('command.edit.redoNamed', { step: model().history.redoEntry.label }) : t('command.edit.redo')),
+    run: () => app.redo(),
+  });
+
+  // Page edits
+  const editable = () => hasDoc() && !model().readOnly;
+  def({ id: 'page.rotateRight', label: 'command.page.rotateRight', icon: 'rotateCw', enabled: editable, run: () => app.rotateCurrentPage(90) });
+  def({ id: 'page.rotateLeft', label: 'command.page.rotateLeft', icon: 'rotateCcw', enabled: editable, run: () => app.rotateCurrentPage(-90) });
 
   // Edit
   def({

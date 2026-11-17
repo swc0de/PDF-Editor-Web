@@ -1,4 +1,4 @@
-import { test, expect, openApp, openFixture, viewerState, pageIn, manifest, shot } from './helpers.mjs';
+import { test, expect, openApp, openFixture, viewerState, pageIn, manifest, shot, reloadApp } from './helpers.mjs';
 
 const findBar = (page) => page.getByRole('search', { name: 'Find in document' });
 const findInput = (page) => findBar(page).getByRole('searchbox');
@@ -167,8 +167,7 @@ test.describe('pages panel', () => {
     expect(w150).toBeCloseTo(w100 * 1.5, 0);
     await slider.fill('50');
     expect(await thumbs.first().locator('.thumb-frame').evaluate((el) => el.offsetWidth)).toBeCloseTo(w100 * 0.5, 0);
-    await page.reload();
-    await page.waitForSelector('html[data-ready="true"]');
+    await reloadApp(page);
     await openFixture(page, 'multipage.pdf');
     await expect(page.locator('#side-panel').getByRole('slider')).toHaveValue('50');
   });

@@ -197,6 +197,20 @@ export function registerPagesPanel() {
         applySize();
       };
       const onSizes = () => applySize();
+      // The document changed (edit/undo): re-render the affected thumbnails.
+      const onDocChange = (e) => {
+        const affected = e.detail.affected ? new Set(e.detail.affected) : null;
+        for (const it of items) {
+          if (affected && !affected.has(it.index)) continue;
+          it.state = 'empty';
+          it.frame.replaceChildren();
+          delete it.el.dataset.state;
+          observer.unobserve(it.el);
+          observer.observe(it.el);
+        }
+        applySize();
+      };
+      tab.addEventListener('docchange', onDocChange);
       viewer.addEventListener('pagechange', onPage);
       viewer.addEventListener('layoutchange', onLayout);
       viewer.addEventListener('sizesloaded', onSizes);
@@ -211,6 +225,7 @@ export function registerPagesPanel() {
         viewer.removeEventListener('pagechange', onPage);
         viewer.removeEventListener('layoutchange', onLayout);
         viewer.removeEventListener('sizesloaded', onSizes);
+        tab.removeEventListener('docchange', onDocChange);
       };
     },
   });

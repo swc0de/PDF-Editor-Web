@@ -1,4 +1,4 @@
-import { test, expect, openApp, openFixture, viewerState, pageIn, shot } from './helpers.mjs';
+import { test, expect, openApp, openFixture, viewerState, pageIn, shot, reloadApp } from './helpers.mjs';
 
 const tabs = (page) => page.getByRole('tab');
 const activeTab = (page) => page.locator('[role="tab"][aria-selected="true"]');
@@ -85,14 +85,14 @@ test.describe('tabs', () => {
   test('unsaved dot and close guard', async ({ page }) => {
     await openApp(page);
     await openFixture(page, 'multipage.pdf');
-    await app(page, () => window.pdfEditor.app.activeTab.setDirty(true));
+    await app(page, () => window.pdfEditor.app.rotateCurrentPage(90));
     await expect(page.locator('.tab-item.active .tab-dirty')).toBeVisible();
     await page.getByRole('button', { name: 'Close multipage.pdf' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Close “multipage.pdf”?' });
+    const dialog = page.getByRole('dialog', { name: 'Save changes to “multipage.pdf”?' });
     await dialog.getByRole('button', { name: 'Cancel' }).click();
     await expect(tabs(page)).toHaveCount(1);
     await page.getByRole('button', { name: 'Close multipage.pdf' }).click();
-    await page.getByRole('dialog').getByRole('button', { name: 'Close without saving' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Don’t save' }).click();
     await expect(tabs(page)).toHaveCount(0);
   });
 
@@ -214,8 +214,7 @@ test.describe('panels', () => {
     await page.keyboard.press('Shift+F4');
     await expect(tools).toBeHidden();
 
-    await page.reload();
-    await page.waitForSelector('html[data-ready="true"]');
+    await reloadApp(page);
     await expect(tools).toBeHidden();
     await expect(page.locator('#side-panel')).toBeVisible();
     await page.keyboard.press('Shift+F4');
@@ -315,8 +314,7 @@ test.describe('preferences', () => {
     const toolsX = (await page.locator('#tools-panel').boundingBox()).x;
     expect(toolsX).toBeGreaterThan(600);
 
-    await page.reload();
-    await page.waitForSelector('html[data-ready="true"]');
+    await reloadApp(page);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await expect(page.locator('.workspace')).toHaveAttribute('data-tools-side', 'right');
     await openFixture(page, 'multipage.pdf');
@@ -348,8 +346,7 @@ test.describe('recent files', () => {
     await expect(cards.filter({ hasText: 'multipage.pdf' })).toContainText('12 pages');
     await expect(cards.first().locator('img.recent-thumb')).toBeVisible();
 
-    await page.reload();
-    await page.waitForSelector('html[data-ready="true"]');
+    await reloadApp(page);
     await expect(cards).toHaveCount(2);
     await cards.filter({ hasText: 'multipage.pdf' }).locator('.recent-open').click();
     await expect(activeTab(page)).toHaveText('multipage.pdf');
@@ -359,8 +356,7 @@ test.describe('recent files', () => {
     await expect(cards.first()).toContainText('multipage.pdf'); // most recent first
     await page.getByRole('button', { name: 'Remove outline.pdf from recent files' }).click();
     await expect(cards).toHaveCount(1);
-    await page.reload();
-    await page.waitForSelector('html[data-ready="true"]');
+    await reloadApp(page);
     await expect(cards).toHaveCount(1);
 
     await page.getByRole('button', { name: 'Clear recent files' }).click();

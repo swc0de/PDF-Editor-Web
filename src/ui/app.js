@@ -15,8 +15,10 @@ import { registerAppCommands } from './app-commands.js';
 import { openMenu, isMenuOpen } from './menu.js';
 import { openPalette } from './palette.js';
 import { toast } from './toast.js';
-import { alertDialog, confirmDialog, promptPassword } from './dialog.js';
-import { handleShortcut, listCommands, primaryShortcut } from './commands.js';
+import { alertDialog, confirmDialog, openDialog, promptPassword } from './dialog.js';
+import { saveTab } from './save.js';
+import { writeAutosave, deleteAutosave, listAutosaves } from '../core/autosave.js';
+import { handleShortcut, listCommands, primaryShortcut, commandLabel } from './commands.js';
 import { DocTab } from './doc-tab.js';
 import { createFindBar } from './find-bar.js';
 import { FindController } from '../view/find-controller.js';
@@ -28,6 +30,8 @@ import { contentId, addRecent, setRecentThumbnail, getRecentBytes, removeRecent,
 const LOADING_DELAY = 150;
 const MAX_CLOSED = 10;
 const THUMB_WIDTH = 180;
+const AUTOSAVE_MS = 60_000;
+const PDF_PICKER_TYPES = [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }];
 
 export class App extends EventTarget {
   constructor(root) {
@@ -46,6 +50,9 @@ export class App extends EventTarget {
       onOpenRecent: (rec) => this.openRecent(rec),
       onRemoveRecent: (rec) => removeRecent(rec.id),
       onClearRecents: () => this.clearRecents(),
+      onRecover: (rec) => this.recover(rec),
+      onDiscardRecovery: (rec) => this.discardRecovery(rec),
+      isOpen: (autosaveId) => this.tabs.some((tab) => tab.autosaveId === autosaveId),
     });
 
     this.tabStrip = createTabStrip({
@@ -107,6 +114,7 @@ export class App extends EventTarget {
     this.renderTabs();
     this.bindKeys();
     this.bindDragAndDrop();
+    this.bindAutosave();
   }
 
   get viewer() {
@@ -168,6 +176,7 @@ export class App extends EventTarget {
     } else {
       this.exitReadMode();
       this.closeFind();
+      this.home.refreshRecovery?.();
       this.shell.setStatusBar(null);
       document.title = t('app.name');
     }
@@ -186,20 +195,35 @@ export class App extends EventTarget {
   async closeTab(tab, { force = false } = {}) {
     if (!tab) return false;
     if (tab.dirty && !force) {
-      const ok = await confirmDialog({
+      if (this.activeTab !== tab) this.activate(tab);
+      const choice = await openDialog({
         title: t('close.dirty.title', { name: tab.name }),
-        message: t('close.dirty.message'),
-        confirmLabel: t('close.dirty.discard'),
-        danger: true,
+        className: 'unsaved-dialog',
+        body: h('p', t('close.dirty.message')),
+        actions: [
+          { label: t('close.dirty.dontSave'), value: 'discard' },
+          { label: t('common.cancel'), value: null },
+          { label: t('close.dirty.save'), value: 'save', primary: true },
+        ],
+        cancelValue: null,
       });
-      if (!ok) return false;
+      if (!choice) return false;
+      if (choice === 'save') {
+        if (!(await saveTab(tab))) return false;
+        await this.afterSave(tab);
+      }
     }
+    await tab.model.queue;
+    await deleteAutosave(tab.autosaveId);
     const index = this.tabs.indexOf(tab);
+    if (index < 0) return false;
     this.closedTabs.push({
       name: tab.name,
       bytes: tab.bytes,
       password: tab.password,
       view: tab.viewState(),
+      dirty: tab.dirty,
+      handle: tab.model.fileHandle,
     });
     if (this.closedTabs.length > MAX_CLOSED) this.closedTabs.shift();
     this.tabs.splice(index, 1);
@@ -223,7 +247,12 @@ export class App extends EventTarget {
   async reopenClosedTab() {
     const last = this.closedTabs.pop();
     if (!last) return null;
-    return this.openBytes(last.bytes, last.name, { password: last.password, view: last.view });
+    return this.openBytes(last.bytes, last.name, {
+      password: last.password,
+      view: last.view,
+      handle: last.handle,
+      clean: !last.dirty,
+    });
   }
 
   tabContextMenu(tab, at, anchor) {
@@ -238,11 +267,27 @@ export class App extends EventTarget {
 
   // ------------------------------------------------------------ opening
 
-  pickFile() {
+  /**
+   * Choose files to open. Where the File System Access API exists we use it,
+   * so Save can write back to the same file later; otherwise a file input.
+   */
+  async pickFile() {
+    if (typeof window.showOpenFilePicker === 'function') {
+      let handles;
+      try {
+        handles = await window.showOpenFilePicker({ multiple: true, types: PDF_PICKER_TYPES });
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        this.fileInput.click(); // e.g. blocked in this context
+        return;
+      }
+      for (const handle of handles) await this.openFile(await handle.getFile(), handle);
+      return;
+    }
     this.fileInput.click();
   }
 
-  async openFile(file) {
+  async openFile(file, handle = null) {
     let bytes;
     try {
       bytes = new Uint8Array(await file.arrayBuffer());
@@ -250,7 +295,7 @@ export class App extends EventTarget {
       this.showOpenError(file.name, err);
       return null;
     }
-    return this.openBytes(bytes, file.name);
+    return this.openBytes(bytes, file.name, { handle });
   }
 
   async openRecent(rec) {
@@ -260,7 +305,7 @@ export class App extends EventTarget {
       this.pickFile();
       return null;
     }
-    return this.openBytes(bytes, rec.name);
+    return this.openBytes(bytes, rec.name, { handle: rec.handle ?? null });
   }
 
   async clearRecents() {
@@ -289,7 +334,7 @@ export class App extends EventTarget {
    * @param {string} name
    * @param {{ password?: string, view?: object }} [o]
    */
-  async openBytes(bytes, name, { password = null, view = null } = {}) {
+  async openBytes(bytes, name, { password = null, view = null, handle = null, clean = true, autosaveId = null } = {}) {
     const id = await contentId(bytes);
     const existing = this.tabs.find((tab) => tab.contentId === id);
     if (existing) {
@@ -324,9 +369,27 @@ export class App extends EventTarget {
       pdfjs,
       password: result.password,
       view: view ?? this.defaultView(),
+      fileHandle: handle,
+      clean,
+      autosaveId,
     });
     tab.viewer.addEventListener('externallink', (e) => this.openExternalLink(e.detail.url));
-    tab.addEventListener('dirtychange', () => this.renderTabs());
+    tab.addEventListener('dirtychange', () => {
+      this.renderTabs();
+      if (!tab.dirty) {
+        tab.lastAutosaved = null;
+        deleteAutosave(tab.autosaveId);
+      }
+    });
+    tab.addEventListener('rename', () => {
+      this.renderTabs();
+      if (tab === this.activeTab) document.title = `${tab.name} — ${t('app.name')}`;
+    });
+    tab.addEventListener('docchange', (e) => {
+      if (tab !== this.activeTab) return;
+      this.findBar.rebind();
+      if (e.detail.structural) this.sidePanel.invalidate();
+    });
     this.tabs.push(tab);
     this.shell.main.append(tab.host);
     this.activate(tab);
@@ -338,7 +401,13 @@ export class App extends EventTarget {
 
   /** Save to recents, then add a first-page thumbnail in the background. */
   async rememberRecent(tab) {
-    const ok = await addRecent({ id: tab.contentId, name: tab.name, bytes: tab.bytes, pageCount: tab.pdf.numPages });
+    const ok = await addRecent({
+      id: tab.contentId,
+      name: tab.name,
+      bytes: tab.bytes,
+      pageCount: tab.pdf.numPages,
+      handle: tab.model.fileHandle,
+    });
     if (!ok) return;
     try {
       const page = await tab.pdf.getPage(1);
@@ -447,6 +516,117 @@ export class App extends EventTarget {
     }
   }
 
+  // ----------------------------------------------------------- editing
+
+  /** Run a document operation on a tab as one named undo step. */
+  async edit(tab, op, args, label) {
+    if (!tab) return false;
+    try {
+      await tab.model.execute(op, args, label);
+      return true;
+    } catch (err) {
+      if (err.name === 'ReadOnlyError') toast(t(`edit.readOnly.${err.reason}`), { kind: 'error' });
+      else toast(t('edit.failed', { message: err.message }), { kind: 'error', timeout: 6000 });
+      return false;
+    }
+  }
+
+  rotateCurrentPage(delta) {
+    const tab = this.activeTab;
+    if (!tab) return false;
+    const index = tab.viewer.current;
+    const label = t(delta > 0 ? 'step.rotatePage' : 'step.rotatePageLeft', { page: tab.viewer.pageLabel(index) });
+    return this.edit(tab, 'rotatePages', { pages: [index], delta }, label);
+  }
+
+  async undo() {
+    await this.activeTab?.model.undo();
+  }
+
+  async redo() {
+    await this.activeTab?.model.redo();
+  }
+
+  async save({ as = false } = {}) {
+    const tab = this.activeTab;
+    if (!tab) return false;
+    const ok = await saveTab(tab, { as });
+    if (ok) await this.afterSave(tab);
+    return ok;
+  }
+
+  /** Keep the recent-files copy in step with what was saved. */
+  async afterSave(tab) {
+    await deleteAutosave(tab.autosaveId);
+    await addRecent({
+      id: tab.contentId,
+      name: tab.name,
+      bytes: tab.bytes,
+      pageCount: tab.pdf.numPages,
+      handle: tab.model.fileHandle,
+    });
+  }
+
+  // ---------------------------------------------------------- autosave
+
+  bindAutosave() {
+    this.autosave = { runNow: () => this.autosaveNow() };
+    this.autosaveTimer = setInterval(() => this.autosaveNow(), AUTOSAVE_MS);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.autosaveNow();
+    });
+    window.addEventListener('pagehide', () => this.autosaveNow());
+    // Unsaved work: ask before the page goes away.
+    window.addEventListener('beforeunload', (e) => {
+      if (!this.tabs.some((tab) => tab.dirty)) return;
+      this.autosaveNow();
+      e.preventDefault();
+      e.returnValue = '';
+    });
+  }
+
+  /** Write every dirty tab whose state changed since its last autosave. */
+  async autosaveNow() {
+    const jobs = this.tabs
+      .filter((tab) => tab.dirty && tab.lastAutosaved !== tab.model.history.current)
+      .map(async (tab) => {
+        const entry = tab.model.history.current;
+        const ok = await writeAutosave({
+          id: tab.autosaveId,
+          name: tab.name,
+          bytes: entry.bytes,
+          handle: tab.model.fileHandle,
+          steps: tab.model.history.entries.slice(1, tab.model.history.index + 1).map((e) => e.label),
+        });
+        if (ok) tab.lastAutosaved = entry;
+      });
+    await Promise.all(jobs);
+    this.home.refreshRecovery?.();
+  }
+
+  async recover(rec) {
+    const bytes = new Uint8Array(await rec.bytes.arrayBuffer());
+    const tab = await this.openBytes(bytes, rec.name, { handle: rec.handle ?? null, clean: false, autosaveId: rec.id });
+    this.home.refreshRecovery?.();
+    return tab;
+  }
+
+  async discardRecovery(rec) {
+    const ok = await confirmDialog({
+      title: t('recovery.discardTitle', { name: rec.name }),
+      message: t('recovery.discardMessage'),
+      confirmLabel: t('recovery.discard'),
+      danger: true,
+    });
+    if (!ok) return;
+    await deleteAutosave(rec.id);
+    this.home.refreshRecovery?.();
+  }
+
+  listRecoverable() {
+    return listAutosaves();
+  }
+
   // -------------------------------------------------------------- find
 
   findController(tab) {
@@ -486,7 +666,7 @@ export class App extends EventTarget {
       .filter((c) => !c.hidden)
       .map((c) => ({
         id: c.id,
-        label: t(c.label),
+        label: commandLabel(c, t),
         group: t(`menu.${c.id.split('.')[0]}`),
         icon: c.icon,
         shortcut: primaryShortcut(c.id),
@@ -552,9 +732,18 @@ export class App extends EventTarget {
       e.preventDefault();
       depth = 0;
       overlay.hidden = true;
+      // File handles must be requested synchronously, during the drop event.
+      const handlePromises = [...e.dataTransfer.items]
+        .filter((item) => item.kind === 'file')
+        .map((item) => item.getAsFileSystemHandle?.().catch(() => null) ?? Promise.resolve(null));
       const files = [...e.dataTransfer.files];
-      const pdfs = files.filter((f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
-      for (const file of pdfs.length ? pdfs : files.slice(0, 1)) await this.openFile(file);
+      const handles = await Promise.all(handlePromises);
+      const isPdf = (f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+      const picked = files.some(isPdf) ? files.filter(isPdf) : files.slice(0, 1);
+      for (const file of picked) {
+        const handle = handles[files.indexOf(file)];
+        await this.openFile(file, handle?.kind === 'file' ? handle : null);
+      }
     });
   }
 }

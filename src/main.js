@@ -7,6 +7,8 @@ import { registerReadMode } from './tools/read-mode.js';
 import { registerNavigationTools } from './tools/navigation.js';
 import { registerPagesPanel } from './ui/panels/pages-panel.js';
 import { registerBookmarksPanel } from './ui/panels/bookmarks-panel.js';
+import { registerHistoryPanel } from './ui/panels/history-panel.js';
+import { registerHistoryTool } from './tools/history.js';
 import * as registry from './tools/registry.js';
 import * as commands from './ui/commands.js';
 import * as libs from './core/libs.js';
@@ -21,6 +23,8 @@ function start() {
   registerNavigationTools();
   registerPagesPanel();
   registerBookmarksPanel();
+  registerHistoryPanel();
+  registerHistoryTool();
 
   const root = document.getElementById('app');
   const app = new App(root);

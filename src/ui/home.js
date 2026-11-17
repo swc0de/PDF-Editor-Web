@@ -7,6 +7,7 @@ import { formatBytes, formatRelativeTime } from './format.js';
 import { getTool, listTools, toolsByCategory, onRegistryChange } from '../tools/registry.js';
 import { RECOMMENDED } from '../tools/catalogue.js';
 import { listRecents, onRecentsChange } from '../core/recents.js';
+import { listAutosaves } from '../core/autosave.js';
 
 /**
  * @param {HTMLElement} container
@@ -14,6 +15,7 @@ import { listRecents, onRecentsChange } from '../core/recents.js';
  */
 export function createHome(container, actions) {
   const el = h('div.home', { id: 'home' });
+  const recoverySlot = h('section.home-section.recovery', { 'aria-labelledby': 'home-recovery-title', hidden: true });
   const recentsSlot = h('section.home-section.recents', { 'aria-labelledby': 'home-recents-title' });
   const toolsSlot = h('div.home-tools');
   let thumbUrls = [];
@@ -35,7 +37,7 @@ export function createHome(container, actions) {
     h('p.home-privacy', icon('shield', { size: 14 }), h('span', t('app.privacy'))),
   );
 
-  el.append(h('div.home-inner', drop, recentsSlot, toolsSlot));
+  el.append(h('div.home-inner', recoverySlot, drop, recentsSlot, toolsSlot));
   container.append(el);
 
   async function renderRecents() {
@@ -105,6 +107,38 @@ export function createHome(container, actions) {
     );
   }
 
+  /** Unsaved work autosaved in an earlier session (or a closed tab). */
+  async function renderRecovery() {
+    const records = (await listAutosaves()).filter((rec) => !actions.isOpen(rec.id));
+    recoverySlot.hidden = records.length === 0;
+    if (!records.length) {
+      recoverySlot.replaceChildren();
+      return;
+    }
+    recoverySlot.replaceChildren(
+      h('div.recovery-head',
+        h('div.recovery-icon', icon('history', { size: 20 })),
+        h('div',
+          h('h2', { id: 'home-recovery-title' }, t('recovery.title')),
+          h('p.muted', t('recovery.text')))),
+      h('ul.recovery-list', { role: 'list' }, records.map((rec) =>
+        h('li.recovery-item', { dataset: { recoveryId: rec.id } },
+          icon('file'),
+          h('div.recovery-text',
+            h('span.recovery-name', rec.name),
+            h('span.muted', [
+              t('recovery.savedAt', { time: formatRelativeTime(rec.savedAt) }),
+              rec.steps?.length ? (rec.steps.length === 1 ? t('recovery.step') : t('recovery.steps', { n: rec.steps.length })) : null,
+              formatBytes(rec.size),
+            ].filter(Boolean).join(' · '))),
+          h('button.btn', { type: 'button', onclick: () => actions.onDiscardRecovery(rec) }, t('recovery.discard')),
+          h('button.btn.primary', { type: 'button', onclick: () => actions.onRecover(rec) }, t('recovery.recover')),
+        ))),
+    );
+  }
+  el.refreshRecovery = renderRecovery;
+
+  renderRecovery();
   renderRecents();
   renderTools();
   onRecentsChange(renderRecents);

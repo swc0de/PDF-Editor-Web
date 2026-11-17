@@ -124,6 +124,40 @@ dist/pdf-editor.html   the deliverable
   visible area only. Text layer (pdf.js `TextLayer`) for selection, a link layer
   for internal/external links, and an error tile when a page can't be loaded.
 
+### Editing: document model, undo, save (`src/core/`)
+
+```
+ UI command ──► DocumentModel.execute(op, args, "Rotate page 3")      (one queue per document)
+                   │  applyOp ──► pdf-lib worker: load (cached) → op → save ──► new bytes
+                   │  UndoHistory.push({label, bytes, affected pages})
+                   └► DocTab.applyChange: pdf.js opens the new bytes,
+                      Viewer.replaceDocument re-renders only the affected pages
+```
+
+- **Worker** (`core/pdf-worker.js`, `core/worker/worker-main.js`): a classic
+  Blob-URL worker holding pdf-lib (its UMD build is fetched on the main thread
+  and prepended). Ops live in `core/ops/*.js` as self-contained functions that
+  are serialised into the worker. The worker caches each document's pdf-lib
+  object at a version id, so consecutive edits don't re-parse the file; after
+  an undo the main thread sends the snapshot bytes instead.
+- **Undo is snapshot-based** (`core/undo-history.js`): each step stores the
+  whole document after it. Undo/redo/jump just switch snapshots. This is exact
+  for every operation — including ones with no cheap inverse (redaction,
+  flattening, OCR) — and can't drift the way paired do/undo code can. pdf-lib
+  rewrites the file on every save anyway, so snapshots cost nothing extra to
+  produce; the cost is memory, capped at 100 steps / 512 MB (oldest dropped
+  first, and the Undo History panel says so).
+- **Saving** (`ui/save.js`): Save writes back through a File System Access
+  handle when the file was opened with one (Chromium: open dialog,
+  drag-and-drop, recent files), else downloads. Save As uses the
+  `name-edited.pdf` suggestion. pdf-lib loads with `updateMetadata: false`, so
+  title, author, dates and producer are kept as they were.
+- **Autosave** (`core/autosave.js`): every 60 s (and when the page is hidden)
+  dirty documents are written to IndexedDB; the next launch offers *Recover* /
+  *Discard* on the home screen. Closing a dirty tab asks Save / Don't save /
+  Cancel; leaving the page with unsaved work triggers the browser's prompt.
+- Password-protected PDFs open read-only (pdf-lib can't edit encrypted files).
+
 ### Find and navigation
 
 - `view/text-index.js` — indexes each page's text in the background (yielding
@@ -207,6 +241,11 @@ it's skipped and so are its tests.
 - Search matches the text exactly as stored: ligatures (ﬁ), accents written
   as separate marks, and words hyphenated across lines aren't normalized, so
   e.g. "find" won't match "ﬁnd".
+
+- Editing password-protected PDFs isn't supported (pdf-lib can't decrypt);
+  they open read-only.
+- Writing back to the original file needs the File System Access API
+  (Chrome/Edge). Elsewhere, Save downloads a copy.
 
 ## Privacy
 

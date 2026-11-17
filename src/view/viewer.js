@@ -67,17 +67,7 @@ export class Viewer extends EventTarget {
     );
     host.append(this.container);
 
-    this.views = Array.from(
-      { length: this.numPages },
-      (_, i) => new PageView(i, {
-        pdfjs,
-        getPage: (idx) => this.getPage(idx),
-        onTextLayer: (view) => this.emit('textlayer', { index: view.index }),
-      }),
-    );
-    const frag = document.createDocumentFragment();
-    for (const v of this.views) frag.append(v.el);
-    this.content.append(frag);
+    this.createViews();
 
     this.onScroll = () => this.scheduleUpdate();
     this.onWheel = (e) => this.handleWheel(e);
@@ -92,6 +82,72 @@ export class Viewer extends EventTarget {
     this.resizeObserver.observe(this.container);
   }
 
+  createViews() {
+    this.views = Array.from(
+      { length: this.numPages },
+      (_, i) => new PageView(i, {
+        pdfjs: this.pdfjs,
+        getPage: (idx) => this.getPage(idx),
+        onTextLayer: (view) => this.emit('textlayer', { index: view.index }),
+      }),
+    );
+    const frag = document.createDocumentFragment();
+    for (const v of this.views) frag.append(v.el);
+    this.content.append(frag);
+  }
+
+  async loadLabels() {
+    try {
+      const labels = await this.doc.getPageLabels();
+      // Labels that are just 1..n add nothing; ignore them.
+      this.labels = labels && labels.some((l, i) => l !== String(i + 1)) ? labels : null;
+    } catch {
+      this.labels = null;
+    }
+  }
+
+  /**
+   * Swap in a new version of the document (after an edit, undo or redo).
+   * Only the affected pages are re-rendered; the others keep their canvases
+   * and text layers. A change in page count rebuilds every page view.
+   * @param {object} doc       the new PDFDocumentProxy
+   * @param {{ affected: number[]|null, structural: boolean }} change
+   */
+  async replaceDocument(doc, { affected = null, structural = false } = {}) {
+    const anchor = this.captureAnchor(0, 0);
+    this.doc = doc;
+    this.pagePromises.clear();
+    const all = structural || doc.numPages !== this.numPages;
+    if (all) {
+      for (const v of this.views) {
+        v.release();
+        v.el.remove();
+      }
+      this.numPages = doc.numPages;
+      this.sizes = new Array(this.numPages).fill(this.sizes[0] ?? DEFAULT_SIZE);
+      this.current = Math.min(this.current, this.numPages - 1);
+      this.createViews();
+    } else {
+      const set = affected ? new Set(affected) : null;
+      this.views.forEach((v, i) => {
+        v.proxy = null; // re-fetched from the new document when next needed
+        if (!set || set.has(i)) v.reset();
+      });
+    }
+    const indexes = all || !affected ? [...Array(this.numPages).keys()] : affected.filter((i) => i < this.numPages);
+    const results = await Promise.allSettled(indexes.map((i) => this.getPage(i)));
+    if (this.destroyed) return;
+    results.forEach((r, k) => {
+      if (r.status === 'fulfilled') this.sizes[indexes[k]] = sizeOf(r.value);
+    });
+    await this.loadLabels();
+    if (this.destroyed) return;
+    // The zoom stays as it is: an edit shouldn't make the view jump.
+    this.relayout(anchor && anchor.idx < this.numPages ? anchor : null);
+    this.emit('docchange', { affected: all ? null : affected, structural: all });
+    this.emit('pagechange');
+  }
+
   /** Load the first page's size, lay out, render, then fetch other sizes. */
   async init() {
     try {
@@ -100,13 +156,7 @@ export class Viewer extends EventTarget {
     } catch {
       /* page 1 is broken: keep the default size, it shows an error tile */
     }
-    try {
-      const labels = await this.doc.getPageLabels();
-      // Labels that are just 1..n add nothing; ignore them.
-      if (labels && labels.some((l, i) => l !== String(i + 1))) this.labels = labels;
-    } catch {
-      this.labels = null;
-    }
+    await this.loadLabels();
     if (this.destroyed) return;
     this.zoom = this.resolveZoom(this.zoomMode);
     this.relayout(null);

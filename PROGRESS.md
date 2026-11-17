@@ -8,7 +8,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M1 | Core viewer | approved |
 | M2 | App shell, tabs, home screen | approved |
 | M3 | Find and navigation | approved |
-| M4 | Document model, undo/redo, save, autosave | in progress |
+| M4 | Document model, undo/redo, save, autosave | awaiting approval |
 | M5 | Organize pages | todo |
 | M6 | Combine and split | todo |
 | M7 | Properties, attachments, layers | todo |
@@ -116,3 +116,29 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 - **Tools ready:** read-mode, find, bookmarks, page-thumbnails.
 - **Tests:** `navigation.spec.mjs` (13). Suite total 64.
 - **Limitations:** no ligature/diacritic/hyphen normalization in search (README).
+
+### M4 — Document model, undo/redo, save, autosave (awaiting approval)
+- **Flow:** command → `app.edit(tab, op, args, label)` → `DocumentModel.execute` (core/document-model.js,
+  serial queue) → `applyOp` (core/pdf-worker.js) → worker (core/worker/worker-main.js; pdf-lib UMD fetched
+  on main thread and prepended; classic Blob worker) → new bytes → `UndoHistory.push` → `onChange` =
+  `DocTab.applyChange` (pdf.js reopens bytes; `Viewer.replaceDocument(doc, {affected, structural})`
+  re-renders only affected pages, rebuilds views if page count changes; zoom kept as is).
+- **Ops:** `core/ops/*.js`, self-contained `function op(PDFLib, doc, args) → { affected }`, registered in
+  `core/ops/index.js` (serialised via toString). M4 op: `rotatePages({pages, delta})`.
+- **Undo:** snapshot per step (`core/undo-history.js`), limits 100 steps / 512 MB; `moveTo` returns the union
+  of affected pages crossed. `model.savedEntry` identity → dirty. Worker caches pdf-lib doc by version id;
+  replies `needBytes` when stale (after undo) and the client resends the snapshot.
+- **Commands:** file.save (Mod+S), file.saveAs (Mod+Shift+S), edit.undo (Mod+Z), edit.redo (Mod+Shift+Z, Mod+Y)
+  — `inInput: false` keeps native undo in text fields; `getLabel()` gives "Undo Rotate page 3";
+  page.rotateRight/Left. Panel `history` (Undo History) + tool `undo-history` ready.
+- **Open with handles:** `pickFile()` uses showOpenFilePicker when present (tests stub it); drag-drop uses
+  `getAsFileSystemHandle`; recents store the handle. Save writes back via handle else downloads; Save As
+  uses showSaveFilePicker (suggested `-edited`) else downloads `-edited`.
+- **Autosave:** 60 s interval + visibilitychange/pagehide; IDB `autosave` keyed by `tab.autosaveId`
+  (= contentId, or the record id for recovered docs). Deleted on save, on clean (undo to saved), on close.
+  Home shows "Recover unsaved changes" (records not open in a tab). `app.autosave.runNow()` for tests.
+- **Guards:** close dirty tab → Save / Don't save / Cancel; `beforeunload` when any tab dirty.
+  Encrypted docs (needed a password) are read-only; pdf-lib EncryptedPDFError also flips read-only.
+- **Tests:** `editing.spec.mjs` (10), `tests/unit/i18n.spec.mjs` (missing-string check). Total 76.
+  `reloadApp()` helper waits 250 ms before reloading (Chromium localStorage commit race under load).
+  Fixed along the way: palette reopen race (closed dialog not yet 'close'd), autosave deletion awaited on save.

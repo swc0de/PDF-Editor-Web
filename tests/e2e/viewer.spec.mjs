@@ -356,14 +356,14 @@ test.describe('opening', () => {
 
   test('Ctrl+O opens the file picker; closing returns home', async ({ page }) => {
     await openApp(page);
-    // (Playwright's filechooser event races its own interception setup under
-    // load, so assert that the shortcut opens the picker input instead.)
+    // Chromium has the File System Access API, so the app uses
+    // showOpenFilePicker (Playwright can't drive that native dialog): stub it.
     await page.evaluate(() => {
       window.__pickerOpened = 0;
-      document.getElementById('file-input').addEventListener('click', (e) => {
-        e.preventDefault();
+      window.showOpenFilePicker = async () => {
         window.__pickerOpened++;
-      });
+        throw new DOMException('cancelled', 'AbortError');
+      };
     });
     await page.keyboard.press('Control+o');
     await expect.poll(() => page.evaluate(() => window.__pickerOpened)).toBe(1);
