@@ -1,0 +1,218 @@
+{
+  "multipage.pdf": {
+    "pageCount": 12,
+    "search": {
+      "quokka": 4,
+      "quokkaMatchCase": {
+        "Quokka": 1,
+        "quokka": 3
+      }
+    },
+    "pageSize": [
+      612,
+      792
+    ]
+  },
+  "mixed-sizes.pdf": {
+    "pageCount": 6,
+    "pages": [
+      {
+        "label": "A4 portrait",
+        "width": 595.28,
+        "height": 841.89,
+        "rotate": 0
+      },
+      {
+        "label": "Letter portrait",
+        "width": 612,
+        "height": 792,
+        "rotate": 0
+      },
+      {
+        "label": "A5 landscape",
+        "width": 595.28,
+        "height": 419.53,
+        "rotate": 0
+      },
+      {
+        "label": "Legal portrait",
+        "width": 612,
+        "height": 1008,
+        "rotate": 0
+      },
+      {
+        "label": "Square 400×400",
+        "width": 400,
+        "height": 400,
+        "rotate": 0
+      },
+      {
+        "label": "Letter with /Rotate 90",
+        "width": 612,
+        "height": 792,
+        "rotate": 90
+      }
+    ]
+  },
+  "outline.pdf": {
+    "pageCount": 10,
+    "outline": [
+      {
+        "title": "Introduction",
+        "page": 1
+      },
+      {
+        "title": "Part One",
+        "page": 2,
+        "open": true,
+        "children": [
+          {
+            "title": "Chapter 1",
+            "page": 3
+          },
+          {
+            "title": "Chapter 2",
+            "page": 5,
+            "children": [
+              {
+                "title": "Section 2.1",
+                "page": 6
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Part Two",
+        "page": 7,
+        "children": [
+          {
+            "title": "Chapter 3",
+            "page": 8
+          }
+        ]
+      },
+      {
+        "title": "Appendix",
+        "page": 10
+      }
+    ]
+  },
+  "page-labels.pdf": {
+    "pageCount": 10,
+    "labels": [
+      "i",
+      "ii",
+      "iii",
+      "iv",
+      "1",
+      "2",
+      "3",
+      "4",
+      "A-1",
+      "A-2"
+    ]
+  },
+  "forms.pdf": {
+    "pageCount": 1,
+    "fields": {
+      "full_name": {
+        "type": "text",
+        "value": "Ada Lovelace"
+      },
+      "notes": {
+        "type": "text",
+        "multiline": true,
+        "value": "First line\nSecond line"
+      },
+      "subscribe": {
+        "type": "checkbox",
+        "value": true
+      },
+      "plan": {
+        "type": "radio",
+        "value": "pro",
+        "options": [
+          "basic",
+          "pro",
+          "team"
+        ]
+      },
+      "country": {
+        "type": "dropdown",
+        "value": "France"
+      },
+      "interests": {
+        "type": "listbox",
+        "value": [
+          "Maths",
+          "Engines"
+        ]
+      },
+      "submit_button": {
+        "type": "button"
+      },
+      "signature": {
+        "type": "signature"
+      }
+    }
+  },
+  "annotations.pdf": {
+    "pageCount": 2,
+    "annotations": [
+      "Text",
+      "Highlight",
+      "Square",
+      "Circle",
+      "Line",
+      "Ink",
+      "FreeText",
+      "Link",
+      "Link"
+    ]
+  },
+  "attachment.pdf": {
+    "pageCount": 1,
+    "attachments": [
+      {
+        "name": "notes.txt",
+        "size": 34,
+        "description": "A plain-text note"
+      },
+      {
+        "name": "inner.pdf",
+        "size": 940,
+        "description": "An embedded PDF"
+      }
+    ]
+  },
+  "layers.pdf": {
+    "pageCount": 1,
+    "layers": [
+      {
+        "name": "Visible layer",
+        "visible": true
+      },
+      {
+        "name": "Hidden layer",
+        "visible": false
+      }
+    ]
+  },
+  "corrupted.pdf": {
+    "pageCount": 5,
+    "brokenPages": [
+      3
+    ]
+  },
+  "truncated.pdf": {
+    "opens": false,
+    "truncatedFrom": "multipage.pdf"
+  },
+  "encrypted.pdf": {
+    "pageCount": 2,
+    "password": "secret",
+    "ownerPassword": "owner-secret",
+    "encryptedWith": "pikepdf"
+  }
+}

@@ -1,0 +1,93 @@
+/* Design tokens. All theming goes through these custom properties.
+   The theme is chosen by [data-theme] on <html> (set before first paint). */
+
+:root {
+  /* Type */
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-lg: 15px;
+  --text-xl: 18px;
+
+  /* Spacing (4px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Shape & sizing */
+  --radius: 6px;
+  --radius-sm: 4px;
+  --control-h: 30px;
+  --control-h-sm: 28px;
+  --control-h-lg: 32px;
+  --topbar-h: 40px;
+  --statusbar-h: 28px;
+  --page-gap: 16px;
+
+  /* Motion */
+  --ease: cubic-bezier(.2, .7, .3, 1);
+  --dur-fast: 90ms;
+  --dur: 160ms;
+
+  /* Accent (shared by both themes) */
+  --accent: #b70228;
+  --accent-hover: #8a011e;
+  --accent-contrast: #ffffff;
+  --logo-fold: #f0a3b3;
+  --logo-lines: rgba(255, 255, 255, .9);
+}
+
+/* Light theme */
+:root,
+:root[data-theme="light"] {
+  --bg: #f6f7f8;
+  --panel: #ffffff;
+  --panel-2: #f0f2f4;
+  --border: #d9dde1;
+  --border-strong: #c3c9cf;
+  --text: #1e2327;
+  --text-muted: #5f6b76;
+  --hover: rgba(30, 35, 39, .06);
+  --active: rgba(30, 35, 39, .10);
+  --canvas: #e4e7ea;
+  --page-shadow: 0 1px 3px rgba(0, 0, 0, .14), 0 4px 14px rgba(0, 0, 0, .08);
+  --popover-shadow: 0 8px 28px rgba(16, 24, 32, .16), 0 2px 6px rgba(16, 24, 32, .08);
+  --focus-ring: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent);
+  --accent-text: #b70228;
+  --accent-soft: rgba(183, 2, 40, .08);
+  --badge-bg: #eceff2;
+  --badge-text: #4e5964;
+  --danger: #b70228;
+  --success: #1d7a45;
+  --warning: #9a6200;
+}
+
+/* Dark theme */
+:root[data-theme="dark"] {
+  --bg: #1e2327;
+  --panel: #262c31;
+  --panel-2: #2e353b;
+  --border: #3a4248;
+  --border-strong: #4a535a;
+  --text: #e6e8ea;
+  --text-muted: #9aa3ab;
+  --hover: rgba(255, 255, 255, .06);
+  --active: rgba(255, 255, 255, .10);
+  --canvas: #171b1e;
+  --page-shadow: 0 1px 3px rgba(0, 0, 0, .5), 0 4px 16px rgba(0, 0, 0, .35);
+  --popover-shadow: 0 10px 30px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35);
+  --focus-ring: 0 0 0 2px var(--panel), 0 0 0 4px #e0405f;
+  /* crimson text on dark surfaces is too dim for AA; use a lighter tint */
+  --accent-text: #ff7a93;
+  --accent-soft: rgba(255, 90, 120, .12);
+  --badge-bg: #353d44;
+  --badge-text: #b7c0c7;
+  --danger: #ff6b84;
+  --success: #4cc27f;
+  --warning: #f0b44c;
+}

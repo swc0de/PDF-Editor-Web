@@ -1,0 +1,19 @@
+{
+  "name": "pdf-editor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A full-featured PDF editor delivered as one self-contained HTML file.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "fixtures": "node tests/make-fixtures.mjs",
+    "test": "node build.mjs && playwright test",
+    "dev": "http-server src -c-1 -p 8080"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "fflate": "0.8.3",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "6.5.438"
+  }
+}

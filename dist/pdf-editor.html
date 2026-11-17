@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- PDF Editor 0.1.0 — built by build.mjs. Edit src/, not this file. -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>PDF Editor</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 1.5h8.5l6 6V20a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 20V4A2.5 2.5 0 0 1 6 1.5z' fill='%23b70228'/%3E%3Cpath d='M14.5 1.5v4a2 2 0 0 0 2 2h4z' fill='%23f0a3b3'/%3E%3C/svg%3E">
+  <script>
+    // Apply the saved (or system) theme before first paint to avoid a flash.
+    (function () {
+      var theme;
+      try { theme = JSON.parse(localStorage.getItem('pdfeditor.theme')); } catch (e) {}
+      if (theme !== 'light' && theme !== 'dark') {
+        theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
+    })();
+  </script>
+  <style data-src="styles/tokens.css">
+/* Design tokens. All theming goes through these custom properties.
+   The theme is chosen by [data-theme] on <html> (set before first paint). */
+
+:root {
+  /* Type */
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-lg: 15px;
+  --text-xl: 18px;
+
+  /* Spacing (4px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Shape & sizing */
+  --radius: 6px;
+  --radius-sm: 4px;
+  --control-h: 30px;
+  --control-h-sm: 28px;
+  --control-h-lg: 32px;
+  --topbar-h: 40px;
+  --statusbar-h: 28px;
+  --page-gap: 16px;
+
+  /* Motion */
+  --ease: cubic-bezier(.2, .7, .3, 1);
+  --dur-fast: 90ms;
+  --dur: 160ms;
+
+  /* Accent (shared by both themes) */
+  --accent: #b70228;
+  --accent-hover: #8a011e;
+  --accent-contrast: #ffffff;
+  --logo-fold: #f0a3b3;
+  --logo-lines: rgba(255, 255, 255, .9);
+}
+
+/* Light theme */
+:root,
+:root[data-theme="light"] {
+  --bg: #f6f7f8;
+  --panel: #ffffff;
+  --panel-2: #f0f2f4;
+  --border: #d9dde1;
+  --border-strong: #c3c9cf;
+  --text: #1e2327;
+  --text-muted: #5f6b76;
+  --hover: rgba(30, 35, 39, .06);
+  --active: rgba(30, 35, 39, .10);
+  --canvas: #e4e7ea;
+  --page-shadow: 0 1px 3px rgba(0, 0, 0, .14), 0 4px 14px rgba(0, 0, 0, .08);
+  --popover-shadow: 0 8px 28px rgba(16, 24, 32, .16), 0 2px 6px rgba(16, 24, 32, .08);
+  --focus-ring: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent);
+  --accent-text: #b70228;
+  --accent-soft: rgba(183, 2, 40, .08);
+  --badge-bg: #eceff2;
+  --badge-text: #4e5964;
+  --danger: #b70228;
+  --success: #1d7a45;
+  --warning: #9a6200;
+}
+
+/* Dark theme */
+:root[data-theme="dark"] {
+  --bg: #1e2327;
+  --panel: #262c31;
+  --panel-2: #2e353b;
+  --border: #3a4248;
+  --border-strong: #4a535a;
+  --text: #e6e8ea;
+  --text-muted: #9aa3ab;
+  --hover: rgba(255, 255, 255, .06);
+  --active: rgba(255, 255, 255, .10);
+  --canvas: #171b1e;
+  --page-shadow: 0 1px 3px rgba(0, 0, 0, .5), 0 4px 16px rgba(0, 0, 0, .35);
+  --popover-shadow: 0 10px 30px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35);
+  --focus-ring: 0 0 0 2px var(--panel), 0 0 0 4px #e0405f;
+  /* crimson text on dark surfaces is too dim for AA; use a lighter tint */
+  --accent-text: #ff7a93;
+  --accent-soft: rgba(255, 90, 120, .12);
+  --badge-bg: #353d44;
+  --badge-text: #b7c0c7;
+  --danger: #ff6b84;
+  --success: #4cc27f;
+  --warning: #f0b44c;
+}
+</style>
+  <style data-src="styles/base.css">
+/* Reset + base controls shared by every screen. */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: var(--text-md)/1.45 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+h1, h2, h3, h4, p { margin: 0; }
+h1 { font-size: var(--text-xl); font-weight: 600; }
+h2 { font-size: var(--text-lg); font-weight: 600; }
+h3 { font-size: var(--text-md); font-weight: 600; }
+
+button,
+input,
+select,
+textarea { font: inherit; color: inherit; }
+
+.muted { color: var(--text-muted); }
+
+:focus { outline: none; }
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.icon { flex: none; display: block; }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.btn:hover:not(:disabled) { background: var(--hover); }
+.btn:active:not(:disabled) { background: var(--active); }
+.btn:disabled { opacity: .55; cursor: default; }
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+.btn.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+.btn.icon-btn {
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+}
+.btn.icon-btn:hover { color: var(--text); }
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Boot splash (replaced once the app starts) */
+.boot-splash {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--text-muted);
+}
+.boot-error {
+  max-width: 520px;
+  margin: 15vh auto 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+/* Scrollbars that suit both themes */
+* { scrollbar-color: var(--border-strong) transparent; }
+</style>
+  <style data-src="styles/shell.css">
+/* App shell: top bar and main area. */
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+  height: var(--topbar-h);
+  padding: 0 var(--space-2) 0 var(--space-3);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+  user-select: none;
+}
+.brand-name { font-size: var(--text-md); }
+
+.topbar-spacer { flex: 1; }
+.topbar-actions { display: flex; align-items: center; gap: var(--space-1); }
+
+.main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+</style>
+  <style data-src="styles/home.css">
+/* Home screen. */
+
+.home-inner {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.home-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-5);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: calc(var(--radius) * 2);
+  background: var(--panel);
+  text-align: center;
+}
+.home-drop-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: var(--space-1);
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.home-drop-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.home-privacy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.category + .category { margin-top: var(--space-5); }
+.category-title {
+  margin-bottom: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-2);
+}
+.tool-grid.recommended { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+
+.tool-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 60px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.tool-card:hover { border-color: var(--border-strong); background: var(--panel-2); }
+.tool-card[aria-disabled="true"] { cursor: default; }
+.tool-card[aria-disabled="true"] .tool-icon { opacity: .7; }
+.tool-card.large { min-height: 68px; }
+
+.tool-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.tool-card.large .tool-icon { width: 40px; height: 40px; }
+
+.tool-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.tool-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.tool-label {
+  min-width: 0;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tool-desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+</style>
+</head>
+<body>
+  <div id="app" aria-busy="true">
+    <div class="boot-splash" role="status">Loading…</div>
+  </div>
+  <noscript>PDF Editor needs JavaScript to run.</noscript>
+  <script type="application/json" id="app-modules">{"@app/core/libs.config.js":"// Single source of truth for third-party library versions.\n//\n// Every library is loaded from jsDelivr at a pinned version. The end-to-end\n// tests read this file too: they serve the same paths from node_modules\n// (package.json devDependencies must carry the same versions — the test\n// harness fails loudly if they drift).\n//\n// Keep this file free of imports so Node can import it directly.\n\nexport const CDN_BASE = 'https://cdn.jsdelivr.net/npm';\n\nexport const LIBS = {\n  pdfjs: {\n    pkg: 'pdfjs-dist',\n    version: '6.5.438',\n    license: 'Apache-2.0',\n    homepage: 'https://mozilla.github.io/pdf.js/',\n    files: {\n      main: 'build/pdf.min.mjs',\n      worker: 'build/pdf.worker.min.mjs',\n      cmaps: 'cmaps/',\n      standardFonts: 'standard_fonts/',\n      wasm: 'wasm/',\n    },\n  },\n  pdfLib: {\n    pkg: 'pdf-lib',\n    version: '1.17.1',\n    license: 'MIT',\n    homepage: 'https://pdf-lib.js.org/',\n    files: {\n      main: 'dist/pdf-lib.esm.min.js',\n      umd: 'dist/pdf-lib.min.js',\n    },\n  },\n  fflate: {\n    pkg: 'fflate',\n    version: '0.8.3',\n    license: 'MIT',\n    homepage: 'https://github.com/101arrowz/fflate',\n    files: {\n      main: 'esm/browser.js',\n    },\n  },\n  tesseract: {\n    pkg: 'tesseract.js',\n    version: '7.0.0',\n    license: 'Apache-2.0',\n    homepage: 'https://tesseract.projectnaptha.com/',\n    files: {\n      main: 'dist/tesseract.esm.min.js',\n    },\n  },\n};\n\n/** Absolute CDN URL for a file of a pinned library. */\nexport function libUrl(name, file = 'main') {\n  const lib = LIBS[name];\n  if (!lib) throw new Error(`Unknown library: ${name}`);\n  const path = lib.files[file] ?? file;\n  return `${CDN_BASE}/${lib.pkg}@${lib.version}/${path}`;\n}\n","@app/core/libs.js":"// Lazy loaders for the CDN libraries. Each library is fetched at most once.\nimport { libUrl } from '@app/core/libs.config.js';\n\nconst cache = new Map();\n\nfunction once(key, loader) {\n  if (!cache.has(key)) {\n    const p = loader().catch((err) => {\n      cache.delete(key); // allow a retry after a network failure\n      throw err;\n    });\n    cache.set(key, p);\n  }\n  return cache.get(key);\n}\n\n/** pdf.js main module (the worker is wired up by the viewer, see view/). */\nexport function loadPdfjs() {\n  return once('pdfjs', () => import(libUrl('pdfjs')));\n}\n\n/** pdf-lib ES module (main thread use; heavy work runs in a worker later). */\nexport function loadPdfLib() {\n  return once('pdfLib', () => import(libUrl('pdfLib')));\n}\n\n/** fflate for zipping split outputs. */\nexport function loadFflate() {\n  return once('fflate', () => import(libUrl('fflate')));\n}\n","@app/core/prefs.js":"// Preferences in localStorage, namespaced and failure-tolerant\n// (private windows or blocked storage must never break the app).\nconst PREFIX = 'pdfeditor.';\n\nexport function getPref(key, fallback = null) {\n  try {\n    const raw = localStorage.getItem(PREFIX + key);\n    return raw === null ? fallback : JSON.parse(raw);\n  } catch {\n    return fallback;\n  }\n}\n\nexport function setPref(key, value) {\n  try {\n    localStorage.setItem(PREFIX + key, JSON.stringify(value));\n  } catch {\n    /* storage unavailable: keep working without persistence */\n  }\n}\n\nexport function removePref(key) {\n  try {\n    localStorage.removeItem(PREFIX + key);\n  } catch {\n    /* ignore */\n  }\n}\n","@app/core/version.js":"// The app version. build.mjs checks it matches package.json.\nexport const VERSION = '0.1.0';\n","@app/i18n/en.js":"// English strings. Keys are grouped by area. Placeholders use {name}.\nexport const en = {\n  // App\n  'app.name': 'PDF Editor',\n  'app.loading': 'Loading…',\n  'app.loadError': 'PDF Editor could not start: {message}',\n  'app.privacy': 'Your files never leave this device',\n  'app.privacyDetail': 'Everything runs locally in your browser. The only network requests are library downloads from a public CDN.',\n\n  // Top bar\n  'topbar.theme.toLight': 'Switch to light theme',\n  'topbar.theme.toDark': 'Switch to dark theme',\n\n  // Home screen\n  'home.drop.title': 'Open a PDF to get started',\n  'home.drop.hint': 'Drag a file here, or choose one from your device.',\n  'home.drop.open': 'Open PDF…',\n  'home.catalogue': 'All tools',\n  'home.catalogue.count': '{ready} of {total} tools ready',\n\n  // Tool status\n  'status.soon': 'Coming soon',\n  'status.ready': 'Ready',\n\n  // Tool categories\n  'category.read': 'Read',\n  'category.find': 'Find',\n  'category.organize': 'Organize',\n  'category.combine': 'Combine & split',\n  'category.protect': 'Protect',\n  'category.forms': 'Forms & layers',\n  'category.ocr': 'Scan & OCR',\n  'category.everywhere': 'Everywhere',\n\n  // Tools — label + one-line description\n  'tool.read-mode.label': 'Read mode',\n  'tool.read-mode.desc': 'Hide everything but the pages',\n  'tool.comment.label': 'Comment',\n  'tool.comment.desc': 'Sticky notes, text boxes and shapes',\n  'tool.highlight.label': 'Highlight text',\n  'tool.highlight.desc': 'Highlight, underline or strike out text',\n  'tool.draw.label': 'Draw',\n  'tool.draw.desc': 'Freehand ink on any page',\n\n  'tool.find.label': 'Find text',\n  'tool.find.desc': 'Search the whole document',\n  'tool.bookmarks.label': 'Bookmarks',\n  'tool.bookmarks.desc': 'Browse and jump through the outline',\n  'tool.page-thumbnails.label': 'Page thumbnails',\n  'tool.page-thumbnails.desc': 'See every page at a glance',\n\n  'tool.organize-pages.label': 'Organize pages',\n  'tool.organize-pages.desc': 'Reorder, rotate, delete and duplicate pages',\n  'tool.rotate-pages.label': 'Rotate pages',\n  'tool.rotate-pages.desc': 'Turn pages 90° left or right',\n  'tool.insert-pages.label': 'Insert pages',\n  'tool.insert-pages.desc': 'Add blank pages or pages from another PDF',\n  'tool.delete-pages.label': 'Delete pages',\n  'tool.delete-pages.desc': 'Remove the pages you don’t need',\n  'tool.extract-pages.label': 'Extract pages',\n  'tool.extract-pages.desc': 'Save selected pages as a new PDF',\n\n  'tool.combine-files.label': 'Combine files',\n  'tool.combine-files.desc': 'Merge several PDFs into one',\n  'tool.split-document.label': 'Split document',\n  'tool.split-document.desc': 'Split by page count, page numbers or bookmarks',\n\n  'tool.redact.label': 'Redact',\n  'tool.redact.desc': 'Permanently black out sensitive content',\n  'tool.sanitize.label': 'Sanitize document',\n  'tool.sanitize.desc': 'Remove metadata, scripts and hidden content',\n  'tool.protect-password.label': 'Password protection',\n  'tool.protect-password.desc': 'Encrypt with a password and set permissions',\n\n  'tool.fill-form.label': 'Fill form',\n  'tool.fill-form.desc': 'Type into fields, tick boxes and choose options',\n  'tool.add-signature.label': 'Add signature',\n  'tool.add-signature.desc': 'Draw, type or upload a visual signature',\n  'tool.prepare-form.label': 'Prepare form',\n  'tool.prepare-form.desc': 'Add text fields, checkboxes, dropdowns and signature fields',\n  'tool.flatten-form.label': 'Flatten form',\n  'tool.flatten-form.desc': 'Turn fields into fixed page content',\n  'tool.layers.label': 'Layers',\n  'tool.layers.desc': 'Show or hide optional content',\n\n  'tool.ocr.label': 'Recognize text (OCR)',\n  'tool.ocr.desc': 'Make scanned pages searchable',\n\n  'tool.print.label': 'Print',\n  'tool.print.desc': 'Print all or part of the document',\n  'tool.properties.label': 'Document properties',\n  'tool.properties.desc': 'Title, author, fonts, security and more',\n  'tool.attachments.label': 'Attachments',\n  'tool.attachments.desc': 'View, add and remove embedded files',\n  'tool.accessibility-check.label': 'Accessibility checker',\n  'tool.accessibility-check.desc': 'Find common accessibility problems',\n  'tool.undo-history.label': 'Undo history',\n  'tool.undo-history.desc': 'Step back to any earlier state',\n};\n","@app/i18n/index.js":"// Tiny i18n layer. Every user-facing string lives in a locale table\n// (English only for now). Use t('key') or t('key', { n: 3 }).\nimport { en } from '@app/i18n/en.js';\n\nconst locales = { en };\nlet current = en;\n\nexport function setLocale(code) {\n  current = locales[code] ?? en;\n  document.documentElement.lang = locales[code] ? code : 'en';\n}\n\nexport function t(key, params) {\n  let s = current[key] ?? en[key];\n  if (s === undefined) {\n    console.warn(`[i18n] missing string: ${key}`);\n    return key;\n  }\n  if (params) {\n    s = s.replace(/\\{(\\w+)\\}/g, (m, name) => (name in params ? String(params[name]) : m));\n  }\n  return s;\n}\n\n/** True if a key exists (used by tests and the registry). */\nexport function hasString(key) {\n  return key in current || key in en;\n}\n","@app/main.js":"// Entry point.\nimport { setLocale } from '@app/i18n/index.js';\nimport { initTheme } from '@app/ui/theme.js';\nimport { createShell } from '@app/ui/shell.js';\nimport { createHome } from '@app/ui/home.js';\nimport { registerCatalogue } from '@app/tools/catalogue.js';\nimport * as registry from '@app/tools/registry.js';\nimport * as libs from '@app/core/libs.js';\nimport { LIBS } from '@app/core/libs.config.js';\nimport { VERSION } from '@app/core/version.js';\n\nfunction start() {\n  setLocale('en');\n  initTheme();\n  registerCatalogue();\n\n  const root = document.getElementById('app');\n  const { main } = createShell(root);\n  createHome(main);\n\n  root.removeAttribute('aria-busy');\n  document.documentElement.dataset.ready = 'true';\n\n  // A small, stable handle for diagnostics and end-to-end tests.\n  window.pdfEditor = Object.freeze({ version: VERSION, registry, libs, libsConfig: LIBS });\n}\n\nstart();\n","@app/tools/catalogue.js":"// The complete tool catalogue. Every planned tool is defined here as\n// \"Coming soon\"; each tool's module calls implementTool() when it's built.\nimport { defineTool } from '@app/tools/registry.js';\n\nconst CATALOGUE = [\n  // Read\n  { id: 'read-mode', category: 'read', icon: 'bookOpen', milestone: 'M1' },\n  { id: 'comment', category: 'read', icon: 'messageSquare', milestone: 'M8' },\n  { id: 'highlight', category: 'read', icon: 'highlighter', milestone: 'M8' },\n  { id: 'draw', category: 'read', icon: 'pen', milestone: 'M8' },\n\n  // Find\n  { id: 'find', category: 'find', icon: 'search', shortcut: 'Mod+F', milestone: 'M3' },\n  { id: 'bookmarks', category: 'find', icon: 'bookmark', milestone: 'M3' },\n  { id: 'page-thumbnails', category: 'find', icon: 'grid', milestone: 'M3' },\n\n  // Organize\n  { id: 'organize-pages', category: 'organize', icon: 'layoutPages', milestone: 'M5' },\n  { id: 'rotate-pages', category: 'organize', icon: 'rotateCw', milestone: 'M5' },\n  { id: 'insert-pages', category: 'organize', icon: 'filePlus', milestone: 'M5' },\n  { id: 'delete-pages', category: 'organize', icon: 'trash', milestone: 'M5' },\n  { id: 'extract-pages', category: 'organize', icon: 'fileOutput', milestone: 'M6' },\n\n  // Combine & split\n  { id: 'combine-files', category: 'combine', icon: 'files', milestone: 'M6' },\n  { id: 'split-document', category: 'combine', icon: 'scissors', milestone: 'M6' },\n\n  // Protect\n  { id: 'redact', category: 'protect', icon: 'redact', milestone: 'M10' },\n  { id: 'sanitize', category: 'protect', icon: 'shieldCheck', milestone: 'M10' },\n  { id: 'protect-password', category: 'protect', icon: 'lock', milestone: 'M10' },\n\n  // Forms & layers\n  { id: 'fill-form', category: 'forms', icon: 'textInput', milestone: 'M9' },\n  { id: 'add-signature', category: 'forms', icon: 'signature', milestone: 'M9' },\n  { id: 'prepare-form', category: 'forms', icon: 'squarePlus', milestone: 'M9' },\n  { id: 'flatten-form', category: 'forms', icon: 'stamp', milestone: 'M9' },\n  { id: 'layers', category: 'forms', icon: 'layers', milestone: 'M7' },\n\n  // Scan & OCR\n  { id: 'ocr', category: 'ocr', icon: 'scanText', milestone: 'M11' },\n\n  // Everywhere\n  { id: 'print', category: 'everywhere', icon: 'printer', shortcut: 'Mod+P', milestone: 'M10' },\n  { id: 'properties', category: 'everywhere', icon: 'info', milestone: 'M7' },\n  { id: 'attachments', category: 'everywhere', icon: 'paperclip', milestone: 'M7' },\n  { id: 'accessibility-check', category: 'everywhere', icon: 'accessibility', milestone: 'M12' },\n  { id: 'undo-history', category: 'everywhere', icon: 'history', milestone: 'M4' },\n];\n\n/** Tools featured on the home screen. */\nexport const RECOMMENDED = [\n  'organize-pages',\n  'combine-files',\n  'comment',\n  'fill-form',\n  'redact',\n  'ocr',\n];\n\nexport function registerCatalogue() {\n  for (const def of CATALOGUE) defineTool(def);\n}\n","@app/tools/registry.js":"// Central tool registry.\n//\n// Every tool is *defined* up front in catalogue.js (metadata, status \"soon\")\n// so the catalogue is complete from day one. A tool's own module later calls\n// implementTool(id, run) which flips its status to \"ready\". The UI (tools\n// panel, home catalogue, command palette) reads only from this registry.\n\nexport const CATEGORIES = [\n  'read',\n  'find',\n  'organize',\n  'combine',\n  'protect',\n  'forms',\n  'ocr',\n  'everywhere',\n];\n\nconst tools = new Map();\nconst listeners = new Set();\n\n/**\n * @typedef {Object} ToolDef\n * @property {string} id          kebab-case id, unique\n * @property {string} label       i18n key for the visible name\n * @property {string} description i18n key for the one-line description\n * @property {string} category    one of CATEGORIES\n * @property {string} icon        icon name from ui/icons.js\n * @property {string} [shortcut]  e.g. \"Mod+F\" (Mod = ⌘ on macOS, Ctrl elsewhere)\n * @property {string} milestone   the milestone that builds it, e.g. \"M5\"\n * @property {'ready'|'soon'} status\n * @property {(ctx: object) => any} [run]\n */\n\nexport function defineTool(def) {\n  if (!/^[a-z][a-z0-9-]*$/.test(def.id)) throw new Error(`Bad tool id: ${def.id}`);\n  if (tools.has(def.id)) throw new Error(`Tool defined twice: ${def.id}`);\n  if (!CATEGORIES.includes(def.category)) {\n    throw new Error(`Tool ${def.id} has unknown category: ${def.category}`);\n  }\n  const tool = {\n    label: `tool.${def.id}.label`,\n    description: `tool.${def.id}.desc`,\n    shortcut: null,\n    ...def,\n    status: 'soon',\n    run: null,\n  };\n  tools.set(tool.id, tool);\n  emit();\n  return tool;\n}\n\n/** Called by a tool's own module once it is built. */\nexport function implementTool(id, run) {\n  const tool = tools.get(id);\n  if (!tool) throw new Error(`implementTool: unknown tool ${id}`);\n  if (typeof run !== 'function') throw new Error(`implementTool: ${id} needs a run()`);\n  tool.run = run;\n  tool.status = 'ready';\n  emit();\n  return tool;\n}\n\nexport function getTool(id) {\n  return tools.get(id) ?? null;\n}\n\nexport function listTools({ category, status } = {}) {\n  return [...tools.values()].filter(\n    (t) => (!category || t.category === category) && (!status || t.status === status),\n  );\n}\n\nexport function toolsByCategory() {\n  return CATEGORIES.map((category) => ({ category, tools: listTools({ category }) }));\n}\n\n/** Run a tool. Tools that aren't built yet are refused, never faked. */\nexport async function runTool(id, ctx = {}) {\n  const tool = tools.get(id);\n  if (!tool) throw new Error(`Unknown tool: ${id}`);\n  if (tool.status !== 'ready') return { ok: false, reason: 'soon' };\n  return { ok: true, value: await tool.run(ctx) };\n}\n\nexport function onRegistryChange(fn) {\n  listeners.add(fn);\n  return () => listeners.delete(fn);\n}\n\nfunction emit() {\n  for (const fn of listeners) fn();\n}\n","@app/ui/dom.js":"// Minimal DOM helpers. h('button.btn.primary', { onclick }, 'Label', child…)\n\nexport function h(tag, props, ...children) {\n  const [name, ...classes] = tag.split('.');\n  const el = document.createElement(name || 'div');\n  if (classes.length) el.className = classes.join(' ');\n  if (props && (typeof props !== 'object' || props instanceof Node || Array.isArray(props))) {\n    children.unshift(props);\n    props = null;\n  }\n  for (const [key, value] of Object.entries(props ?? {})) {\n    if (value === undefined || value === null || value === false) continue;\n    if (key.startsWith('on') && typeof value === 'function') {\n      el.addEventListener(key.slice(2).toLowerCase(), value);\n    } else if (key === 'class') {\n      el.className = [el.className, value].filter(Boolean).join(' ');\n    } else if (key === 'style' && typeof value === 'object') {\n      Object.assign(el.style, value);\n    } else if (key === 'dataset') {\n      Object.assign(el.dataset, value);\n    } else if (key in el && !key.includes('-') && key !== 'role') {\n      el[key] = value;\n    } else {\n      el.setAttribute(key, value === true ? '' : String(value));\n    }\n  }\n  append(el, children);\n  return el;\n}\n\nfunction append(el, children) {\n  for (const child of children.flat(Infinity)) {\n    if (child === null || child === undefined || child === false) continue;\n    el.append(child instanceof Node ? child : String(child));\n  }\n}\n\nexport function clear(el) {\n  while (el.firstChild) el.firstChild.remove();\n  return el;\n}\n","@app/ui/home.js":"// Home screen shown when no document is open.\nimport { h } from '@app/ui/dom.js';\nimport { icon } from '@app/ui/icons.js';\nimport { t } from '@app/i18n/index.js';\nimport { formatShortcut } from '@app/ui/keys.js';\nimport { getTool, listTools, toolsByCategory, onRegistryChange } from '@app/tools/registry.js';\nimport { RECOMMENDED } from '@app/tools/catalogue.js';\n\nexport function createHome(container) {\n  const el = h('div.home', { id: 'home' });\n  const render = () => el.replaceChildren(...build());\n  render();\n  onRegistryChange(render);\n  container.append(el);\n  return el;\n}\n\nfunction build() {\n  const all = listTools();\n  const ready = all.filter((tool) => tool.status === 'ready').length;\n\n  const drop = h(\n    'section.home-drop',\n    { 'aria-labelledby': 'home-drop-title' },\n    h('div.home-drop-icon', icon('upload', { size: 28 })),\n    h('h1.home-drop-title', { id: 'home-drop-title' }, t('home.drop.title')),\n    h('p.muted', t('home.drop.hint')),\n    h(\n      'div.home-drop-actions',\n      // Opening files arrives with the viewer (M1). Shown disabled, not faked.\n      h('button.btn.primary', { type: 'button', disabled: true, id: 'home-open' },\n        icon('folderOpen'), t('home.drop.open')),\n      h('span.badge', t('status.soon')),\n    ),\n    h('p.home-privacy', icon('shield', { size: 14 }), h('span', t('app.privacy'))),\n  );\n\n  const recommended = h(\n    'section.home-section',\n    { 'aria-label': t('home.catalogue') },\n    h('div.tool-grid.recommended', RECOMMENDED.map((id) => toolCard(getTool(id), true))),\n  );\n\n  const catalogue = h(\n    'section.home-section.catalogue',\n    { 'aria-labelledby': 'home-catalogue-title' },\n    h(\n      'div.section-head',\n      h('h2', { id: 'home-catalogue-title' }, t('home.catalogue')),\n      h('span.muted', t('home.catalogue.count', { ready, total: all.length })),\n    ),\n    toolsByCategory().map(({ category, tools }) =>\n      h(\n        'div.category',\n        { dataset: { category } },\n        h('h3.category-title', t(`category.${category}`)),\n        h('div.tool-grid', tools.map((tool) => toolCard(tool, false))),\n      ),\n    ),\n  );\n\n  return [h('div.home-inner', drop, recommended, catalogue)];\n}\n\nfunction toolCard(tool, large) {\n  const soon = tool.status !== 'ready';\n  const shortcut = formatShortcut(tool.shortcut);\n  const title = [t(tool.label), shortcut && `(${shortcut})`, soon && `— ${t('status.soon')}`]\n    .filter(Boolean)\n    .join(' ');\n  return h(\n    `button.tool-card${large ? '.large' : ''}`,\n    {\n      type: 'button',\n      title,\n      'aria-disabled': soon ? 'true' : null,\n      dataset: { tool: tool.id, status: tool.status },\n    },\n    h('span.tool-icon', icon(tool.icon, { size: large ? 20 : 16 })),\n    h(\n      'span.tool-text',\n      h(\n        'span.tool-head',\n        h('span.tool-label', t(tool.label)),\n        soon ? h('span.badge', t('status.soon')) : null,\n      ),\n      h('span.tool-desc', t(tool.description)),\n    ),\n  );\n}\n","@app/ui/icons.js":"// Inline SVG icons, 24×24 stroke style. icon(name) returns an SVGElement.\nconst PATHS = {\n  bookOpen: '\u003cpath d=\"M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z\"/>\u003cpath d=\"M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z\"/>',\n  messageSquare: '\u003cpath d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/>',\n  highlighter: '\u003cpath d=\"m9 11-6 6v3h9l3-3\"/>\u003cpath d=\"m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4\"/>',\n  pen: '\u003cpath d=\"M12 20h9\"/>\u003cpath d=\"M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z\"/>',\n  search: '\u003ccircle cx=\"11\" cy=\"11\" r=\"7\"/>\u003cpath d=\"m21 21-4.3-4.3\"/>',\n  bookmark: '\u003cpath d=\"m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z\"/>',\n  grid: '\u003crect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/>\u003crect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/>\u003crect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/>\u003crect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/>',\n  layoutPages: '\u003crect x=\"3\" y=\"3\" width=\"7\" height=\"9\" rx=\"1\"/>\u003crect x=\"14\" y=\"3\" width=\"7\" height=\"5\" rx=\"1\"/>\u003crect x=\"14\" y=\"12\" width=\"7\" height=\"9\" rx=\"1\"/>\u003crect x=\"3\" y=\"16\" width=\"7\" height=\"5\" rx=\"1\"/>',\n  rotateCw: '\u003cpath d=\"M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8\"/>\u003cpath d=\"M21 3v5h-5\"/>',\n  filePlus: '\u003cpath d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"/>\u003cpath d=\"M14 2v6h6\"/>\u003cpath d=\"M12 18v-6\"/>\u003cpath d=\"M9 15h6\"/>',\n  trash: '\u003cpath d=\"M3 6h18\"/>\u003cpath d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6\"/>\u003cpath d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/>',\n  fileOutput: '\u003cpath d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"/>\u003cpath d=\"M14 2v6h6\"/>\u003cpath d=\"M8 15h7\"/>\u003cpath d=\"m12 12 3 3-3 3\"/>',\n  files: '\u003cpath d=\"M15 2H9a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7z\"/>\u003cpath d=\"M15 2v5h5\"/>\u003cpath d=\"M3 7.6v12.8A1.6 1.6 0 0 0 4.6 22h9.8\"/>',\n  scissors: '\u003ccircle cx=\"6\" cy=\"6\" r=\"3\"/>\u003ccircle cx=\"6\" cy=\"18\" r=\"3\"/>\u003cpath d=\"M20 4 8.12 15.88\"/>\u003cpath d=\"M14.47 14.48 20 20\"/>\u003cpath d=\"M8.12 8.12 12 12\"/>',\n  redact: '\u003crect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/>\u003crect x=\"6.5\" y=\"8\" width=\"11\" height=\"3.5\" fill=\"currentColor\" stroke=\"none\"/>\u003cpath d=\"M6.5 15.5h7\"/>',\n  shieldCheck: '\u003cpath d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/>\u003cpath d=\"m9 12 2 2 4-4\"/>',\n  lock: '\u003crect x=\"3\" y=\"11\" width=\"18\" height=\"11\" rx=\"2\"/>\u003cpath d=\"M7 11V7a5 5 0 0 1 10 0v4\"/>',\n  textInput: '\u003cpath d=\"M5 4h1a3 3 0 0 1 3 3 3 3 0 0 1 3-3h1\"/>\u003cpath d=\"M13 20h-1a3 3 0 0 1-3-3 3 3 0 0 1-3 3H5\"/>\u003cpath d=\"M5 16H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h1\"/>\u003cpath d=\"M13 8h7a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-7\"/>\u003cpath d=\"M9 7v10\"/>',\n  signature: '\u003cpath d=\"M3 16c2.5-.5 3.5-8 6-8 2 0 .5 7 3 7 1.8 0 2-4 4-4 1.5 0 1.5 3 5 3\"/>\u003cpath d=\"M3 21h18\"/>',\n  squarePlus: '\u003crect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/>\u003cpath d=\"M12 8v8\"/>\u003cpath d=\"M8 12h8\"/>',\n  stamp: '\u003cpath d=\"M5 22h14\"/>\u003cpath d=\"M19.27 13.73A2.5 2.5 0 0 0 17.5 13h-11A2.5 2.5 0 0 0 4 15.5V17a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1.5c0-.66-.26-1.3-.73-1.77Z\"/>\u003cpath d=\"M14 13V8.5C14 7 15 7 15 5a3 3 0 0 0-6 0c0 2 1 2 1 3.5V13\"/>',\n  layers: '\u003cpath d=\"m12 2 10 5-10 5L2 7z\"/>\u003cpath d=\"m2 17 10 5 10-5\"/>\u003cpath d=\"m2 12 10 5 10-5\"/>',\n  scanText: '\u003cpath d=\"M3 7V5a2 2 0 0 1 2-2h2\"/>\u003cpath d=\"M17 3h2a2 2 0 0 1 2 2v2\"/>\u003cpath d=\"M21 17v2a2 2 0 0 1-2 2h-2\"/>\u003cpath d=\"M7 21H5a2 2 0 0 1-2-2v-2\"/>\u003cpath d=\"M7 8h8\"/>\u003cpath d=\"M7 12h10\"/>\u003cpath d=\"M7 16h6\"/>',\n  printer: '\u003cpath d=\"M6 9V2h12v7\"/>\u003cpath d=\"M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2\"/>\u003crect x=\"6\" y=\"14\" width=\"12\" height=\"8\"/>',\n  info: '\u003ccircle cx=\"12\" cy=\"12\" r=\"10\"/>\u003cpath d=\"M12 16v-4\"/>\u003cpath d=\"M12 8h.01\"/>',\n  paperclip: '\u003cpath d=\"m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48\"/>',\n  accessibility: '\u003ccircle cx=\"16\" cy=\"4\" r=\"1\"/>\u003cpath d=\"m18 19 1-7-6 1\"/>\u003cpath d=\"m5 8 3-3 5.5 3-2.36 3.5\"/>\u003cpath d=\"M4.24 14.5a5 5 0 0 0 6.88 6\"/>\u003cpath d=\"M13.76 17.5a5 5 0 0 0-6.88-6\"/>',\n  history: '\u003cpath d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"/>\u003cpath d=\"M3 3v5h5\"/>\u003cpath d=\"M12 7v5l4 2\"/>',\n  sun: '\u003ccircle cx=\"12\" cy=\"12\" r=\"4\"/>\u003cpath d=\"M12 2v2\"/>\u003cpath d=\"M12 20v2\"/>\u003cpath d=\"m4.93 4.93 1.41 1.41\"/>\u003cpath d=\"m17.66 17.66 1.41 1.41\"/>\u003cpath d=\"M2 12h2\"/>\u003cpath d=\"M20 12h2\"/>\u003cpath d=\"m6.34 17.66-1.41 1.41\"/>\u003cpath d=\"m19.07 4.93-1.41 1.41\"/>',\n  moon: '\u003cpath d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"/>',\n  upload: '\u003cpath d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/>\u003cpath d=\"m17 8-5-5-5 5\"/>\u003cpath d=\"M12 3v12\"/>',\n  folderOpen: '\u003cpath d=\"m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2\"/>',\n  shield: '\u003cpath d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/>',\n};\n\nconst SVG_NS = 'http://www.w3.org/2000/svg';\n\nexport function icon(name, { size = 16, className = 'icon' } = {}) {\n  const svg = document.createElementNS(SVG_NS, 'svg');\n  svg.setAttribute('viewBox', '0 0 24 24');\n  svg.setAttribute('width', String(size));\n  svg.setAttribute('height', String(size));\n  svg.setAttribute('fill', 'none');\n  svg.setAttribute('stroke', 'currentColor');\n  svg.setAttribute('stroke-width', '2');\n  svg.setAttribute('stroke-linecap', 'round');\n  svg.setAttribute('stroke-linejoin', 'round');\n  svg.setAttribute('aria-hidden', 'true');\n  svg.setAttribute('focusable', 'false');\n  svg.setAttribute('class', className);\n  svg.innerHTML = PATHS[name] ?? PATHS.info;\n  if (!PATHS[name]) console.warn(`[icons] unknown icon: ${name}`);\n  return svg;\n}\n\nexport function hasIcon(name) {\n  return name in PATHS;\n}\n\n/** The app logo: a document with a folded corner. */\nexport function logo(size = 22) {\n  const svg = document.createElementNS(SVG_NS, 'svg');\n  svg.setAttribute('viewBox', '0 0 24 24');\n  svg.setAttribute('width', String(size));\n  svg.setAttribute('height', String(size));\n  svg.setAttribute('aria-hidden', 'true');\n  svg.setAttribute('class', 'logo');\n  svg.innerHTML =\n    '\u003cpath d=\"M6 1.5h8.5L20.5 7.5V20a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 20V4A2.5 2.5 0 0 1 6 1.5z\" fill=\"var(--accent)\"/>' +\n    '\u003cpath d=\"M14.5 1.5V5.5a2 2 0 0 0 2 2h4z\" fill=\"var(--logo-fold)\"/>' +\n    '\u003cpath d=\"M7.5 12h9M7.5 15.5h9M7.5 19h5.5\" stroke=\"var(--logo-lines)\" stroke-width=\"1.6\" stroke-linecap=\"round\"/>';\n  return svg;\n}\n","@app/ui/keys.js":"// Keyboard shortcut helpers. Shortcuts are written as \"Mod+Shift+S\":\n// Mod is ⌘ on macOS and Ctrl elsewhere.\n\nexport const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);\n\nconst MAC_SYMBOLS = { Mod: '⌘', Shift: '⇧', Alt: '⌥', Ctrl: '⌃' };\n\n/** Human-readable shortcut for the current platform, e.g. \"⌘F\" or \"Ctrl+F\". */\nexport function formatShortcut(shortcut) {\n  if (!shortcut) return '';\n  const parts = shortcut.split('+');\n  if (IS_MAC) {\n    // macOS convention: modifiers in the order ⌃⌥⇧⌘, no separators.\n    const order = ['Ctrl', 'Alt', 'Shift', 'Mod'];\n    const mods = parts.slice(0, -1).sort((a, b) => order.indexOf(a) - order.indexOf(b));\n    return mods.map((m) => MAC_SYMBOLS[m] ?? m).join('') + parts.at(-1);\n  }\n  return parts.map((p) => (p === 'Mod' ? 'Ctrl' : p)).join('+');\n}\n\n/** Does a KeyboardEvent match a shortcut string? */\nexport function matchShortcut(event, shortcut) {\n  const parts = shortcut.split('+');\n  const key = parts.at(-1).toLowerCase();\n  const want = new Set(parts.slice(0, -1));\n  const mod = IS_MAC ? event.metaKey : event.ctrlKey;\n  if (want.has('Mod') !== mod) return false;\n  if (want.has('Shift') !== event.shiftKey) return false;\n  if (want.has('Alt') !== event.altKey) return false;\n  if (!IS_MAC && want.has('Ctrl') && !event.ctrlKey) return false;\n  return event.key.toLowerCase() === key || event.code.toLowerCase() === key;\n}\n","@app/ui/shell.js":"// Application shell: top bar + main area. Later milestones add the tab strip,\n// menus, tools panel, side panels, find bar and status bar here.\nimport { h } from '@app/ui/dom.js';\nimport { icon, logo } from '@app/ui/icons.js';\nimport { t } from '@app/i18n/index.js';\nimport { currentTheme, toggleTheme, onThemeChange } from '@app/ui/theme.js';\n\nexport function createShell(root) {\n  const themeBtn = h('button.btn.icon-btn', {\n    type: 'button',\n    id: 'theme-toggle',\n    onclick: () => toggleTheme(),\n  });\n  const syncThemeButton = () => {\n    const dark = currentTheme() === 'dark';\n    const label = t(dark ? 'topbar.theme.toLight' : 'topbar.theme.toDark');\n    themeBtn.replaceChildren(icon(dark ? 'sun' : 'moon'));\n    themeBtn.title = label;\n    themeBtn.setAttribute('aria-label', label);\n  };\n  syncThemeButton();\n  onThemeChange(syncThemeButton);\n\n  const topbar = h(\n    'header.topbar',\n    { role: 'banner' },\n    h('div.brand', logo(20), h('span.brand-name', t('app.name'))),\n    h('div.topbar-spacer'),\n    h('div.topbar-actions', themeBtn),\n  );\n\n  const main = h('main.main', { id: 'main' });\n  root.replaceChildren(topbar, main);\n  return { topbar, main };\n}\n","@app/ui/theme.js":"// Light/dark theme. First run follows prefers-color-scheme; an explicit\n// choice is remembered. (index.html applies the saved theme before the app\n// loads, so there is no flash.)\nimport { getPref, setPref } from '@app/core/prefs.js';\n\nconst listeners = new Set();\n\nexport function currentTheme() {\n  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';\n}\n\nfunction systemTheme() {\n  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';\n}\n\nexport function initTheme() {\n  applyTheme(getPref('theme') ?? systemTheme());\n  // Follow the OS only while the user hasn't chosen.\n  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {\n    if (!getPref('theme')) applyTheme(systemTheme());\n  });\n}\n\nexport function setTheme(theme) {\n  setPref('theme', theme);\n  applyTheme(theme);\n}\n\nexport function toggleTheme() {\n  setTheme(currentTheme() === 'dark' ? 'light' : 'dark');\n}\n\nexport function onThemeChange(fn) {\n  listeners.add(fn);\n  return () => listeners.delete(fn);\n}\n\nfunction applyTheme(theme) {\n  document.documentElement.dataset.theme = theme;\n  document.documentElement.style.colorScheme = theme;\n  for (const fn of listeners) fn(theme);\n}\n"}</script>
+  <script>
+(function () {
+  var data = document.getElementById('app-modules');
+  function fail(err) {
+    var app = document.getElementById('app');
+    var box = document.createElement('div');
+    box.className = 'boot-error';
+    box.setAttribute('role', 'alert');
+    box.textContent = 'PDF Editor could not start: ' + (err && err.message ? err.message : err);
+    app.replaceChildren(box);
+    app.removeAttribute('aria-busy');
+    console.error(err);
+  }
+  if (!(window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap'))) {
+    fail(new Error('this browser is too old (it needs ES module import maps).'));
+    return;
+  }
+  try {
+    var sources = JSON.parse(data.textContent);
+    var imports = {};
+    for (var id in sources) {
+      var code = sources[id] + '\n//# sourceURL=pdf-editor:///' + id.slice(5);
+      imports[id] = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
+    }
+    var map = document.createElement('script');
+    map.type = 'importmap';
+    map.textContent = JSON.stringify({ imports: imports });
+    document.head.appendChild(map);
+    window.__pdfEditorBootFail = fail;
+    var entry = document.createElement('script');
+    entry.type = 'module';
+    entry.textContent = 'import("@app/main.js").catch(function (e) { window.__pdfEditorBootFail(e); });';
+    document.body.appendChild(entry);
+  } catch (err) {
+    fail(err);
+  }
+})();
+</script>
+</body>
+</html>
