@@ -10,8 +10,8 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M3 | Find and navigation | approved |
 | M4 | Document model, undo/redo, save, autosave | approved |
 | M5 | Organize pages | approved |
-| M6 | Combine and split | awaiting approval |
-| M7 | Properties, attachments, layers | todo |
+| M6 | Combine and split | approved |
+| M7 | Properties, attachments, layers | in progress |
 | M8 | Comments and annotations | todo |
 | M9 | Forms and signatures | todo |
 | M10 | Protect, redact, print | todo |
@@ -164,7 +164,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   `npx playwright test --project chromium --repeat-each 3 --workers 6`. `window.pdfEditor.storage.clearAll()`
   resets storage in tests (deleteDatabase is blocked while open). Total 97 tests.
 
-### M6 — Combine and split (awaiting approval)
+### M6 — Combine and split (approved)
 - **Jobs:** `core/jobs.js` `runJob(job, args, {onProgress, transfer})` → `{promise, cancel}`; a fresh worker per job
   (built by `core/worker-source.js`, which also builds the editing worker: pdf-lib UMD [+ fflate UMD] + worker-main),
   cancel = terminate. Worker-main handles `type:'job'` with ctx `{helpers, progress, zip}`; `workerMain(OPS, HELPERS, JOBS)`.
