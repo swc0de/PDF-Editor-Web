@@ -5,8 +5,8 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | Milestone | Name | Status |
 |---|---|---|
 | M0 | Scaffold, build and test harness | approved |
-| M1 | Core viewer | awaiting approval |
-| M2 | App shell, tabs, home screen | todo |
+| M1 | Core viewer | approved |
+| M2 | App shell, tabs, home screen | in progress |
 | M3 | Find and navigation | todo |
 | M4 | Document model, undo/redo, save, autosave | todo |
 | M5 | Organize pages | todo |
@@ -53,7 +53,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 - **Tests:** 17 (6 e2e smoke incl. CDN library load + screenshots, 11 fixture checks). One unexplained
   failure of the theme-persistence test seen once; not reproducible in 166 reruns. Watch it.
 
-### M1 — Core viewer (awaiting approval)
+### M1 — Core viewer (approved)
 - **Files:** `view/pdfjs.js` (lib + worker + open/password), `view/layout.js` (pure layout),
   `view/viewer.js` (scroll/zoom/virtualization/scheduler/navigation), `view/page-view.js` (canvas,
   tiles, text + link layers, error tile), `ui/app.js` (controller + commands + drag/drop + read
