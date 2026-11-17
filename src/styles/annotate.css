@@ -134,18 +134,27 @@
   overflow: visible;
   pointer-events: none;
 }
-.annot-textbox {
+.annot-texteditor {
   position: absolute;
-  z-index: 5;
-  min-width: 160px;
-  min-height: 1.6em;
-  border: 1.5px dashed var(--accent);
-  border-radius: 2px;
-  background: rgba(255, 255, 255, .85);
-  font-family: Helvetica, Arial, sans-serif;
-  resize: both;
-  outline: none;
+  z-index: 6;
+  outline: 1.5px dashed var(--accent);
+  outline-offset: 2px;
 }
+.annot-textbox {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  border: 0 solid transparent;
+  border-radius: 0;
+  color: #1e2327;
+  resize: none;
+  outline: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.annot-textbox::placeholder { color: #8a9299; }
 
 /* Comments panel */
 .comments-filters {
@@ -202,3 +211,13 @@
 .comment-editor { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-2); cursor: auto; }
 .comment-textarea { width: 100%; min-height: 56px; padding: var(--space-1) var(--space-2); resize: vertical; font: inherit; }
 .comment-editor-actions { display: flex; justify-content: flex-end; gap: var(--space-1); }
+
+/* Word-style text formatting in the toolbar */
+.annot-text-format, .annot-box-format { gap: 2px; }
+.annot-toolbar select.input.annot-font { width: 104px; }
+.annot-toolbar select.input.annot-font-size { width: 64px; }
+.annot-toolbar .btn.icon-btn.annot-fmt { width: 28px; height: 28px; }
+.annot-fmt[aria-pressed="true"] { background: var(--accent-soft) !important; color: var(--accent-text); border-color: color-mix(in srgb, var(--accent) 40%, transparent) !important; }
+.annot-sep-sm { height: 18px; margin: 0 2px; }
+.annot-mini-label { display: inline-flex; align-items: center; gap: 4px; color: var(--text-muted); font-size: var(--text-sm); }
+.annot-toolbar select.input.annot-boxcolor { width: 72px; }

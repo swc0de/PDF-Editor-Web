@@ -61,7 +61,7 @@ export function specRect(spec) {
 }
 
 /** Content stream (PDF operators) drawing a spec, in page coordinates. */
-export function appearanceContent(spec, rect) {
+export function appearanceContent(spec, rect, layout = null) {
   const f = (n) => (Math.round(n * 1000) / 1000).toString();
   const [r, g, b] = (spec.rgb || [0, 0, 0]).map(f);
   const w = Math.max(0.5, Number(spec.width) || 1);
@@ -126,14 +126,32 @@ export function appearanceContent(spec, rect) {
       }
       break;
     case 'freetext': {
-      const [x0, , , y1] = rect;
-      const size = Number(spec.fontSize) || 12;
-      const enc = (line) => line
-        .replace(/[^\x20-\x7e\xa0-\xff]/g, '?')
-        .replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
-      ops.push('BT', `/Helv ${f(size)} Tf`, `${r} ${g} ${b} rg`, `${f(size * 1.2)} TL`, `${f(x0 + 4)} ${f(y1 - 4 - size)} Td`);
-      String(spec.text ?? '').split('\n').forEach((line, i) => ops.push(`${i ? 'T* ' : ''}(${enc(line)}) Tj`));
+      // Box (fill / border) then wrapped, aligned text in a standard font.
+      const [x0, y0, x1, y1] = rect;
+      const lay = layout;
+      const bw = spec.border ? Math.max(0.5, Number(spec.borderWidth) || 1) : 0;
+      if (spec.fillRgb) ops.push(`${spec.fillRgb.map(f).join(' ')} rg ${f(x0)} ${f(y0)} ${f(x1 - x0)} ${f(y1 - y0)} re f`);
+      if (bw) ops.push(`${spec.borderRgb.map(f).join(' ')} RG ${f(bw)} w ${f(x0 + bw / 2)} ${f(y0 + bw / 2)} ${f(x1 - x0 - bw)} ${f(y1 - y0 - bw)} re S`);
+      if (!lay) break;
+      const pad = 4 + bw;
+      const size = lay.size;
+      const top = y1 - pad - size * (0.1 + lay.font.ascent);
+      ops.push('BT', `/${lay.font.res} ${f(size)} Tf`, `${r} ${g} ${b} rg`);
+      const xs = [];
+      lay.lines.forEach((line, i) => {
+        const x = spec.align === 'center' ? (x0 + x1 - line.width) / 2 : spec.align === 'right' ? x1 - pad - line.width : x0 + pad;
+        xs.push(x);
+        if (line.text) ops.push(`1 0 0 1 ${f(x)} ${f(top - i * lay.lineHeight)} Tm ${line.hex} Tj`);
+      });
       ops.push('ET');
+      if (spec.underline) {
+        ops.push(`${r} ${g} ${b} RG ${f(Math.max(0.5, size * 0.06))} w`);
+        lay.lines.forEach((line, i) => {
+          if (!line.width) return;
+          const y = top - i * lay.lineHeight - size * 0.12;
+          ops.push(`${f(xs[i])} ${f(y)} m ${f(xs[i] + line.width)} ${f(y)} l S`);
+        });
+      }
       break;
     }
     case 'note': {
@@ -161,10 +179,12 @@ export function makeAppearance(L, H, doc, spec, rect) {
   const gs = { Type: 'ExtGState', CA: opacity, ca: opacity };
   if (spec.type === 'highlight') gs.BM = 'Multiply';
   const resources = { ExtGState: { GS0: gs } };
+  let layout = null;
   if (spec.type === 'freetext') {
-    resources.Font = { Helv: { Type: 'Font', Subtype: 'Type1', BaseFont: 'Helvetica', Encoding: 'WinAnsiEncoding' } };
+    layout = H.layoutFreeText(L, H, spec, rect);
+    resources.Font = { [layout.font.res]: { Type: 'Font', Subtype: 'Type1', BaseFont: layout.font.name, Encoding: 'WinAnsiEncoding' } };
   }
-  const stream = ctx.stream(H.appearanceContent(spec, rect), {
+  const stream = ctx.stream(H.appearanceContent(spec, rect, layout), {
     Type: 'XObject',
     Subtype: 'Form',
     BBox: rect,
@@ -179,7 +199,9 @@ export function createAnnotation(L, H, doc, pageIndex, spec) {
   const ctx = doc.context;
   const page = doc.getPage(pageIndex);
   const s = { ...spec, rgb: H.hexToRgb(spec.color) };
-  const rect = H.specRect(s);
+  if (s.type === 'freetext') H.normalizeFreeText(H, s);
+  let rect = H.specRect(s);
+  if (s.type === 'freetext') rect = H.fitFreeText(L, H, s, rect);
   const now = H.pdfDate();
   const dict = {
     Type: 'Annot',
@@ -202,18 +224,15 @@ export function createAnnotation(L, H, doc, pageIndex, spec) {
     dict.LE = ['None', s.arrow ? 'OpenArrow' : 'None'];
   }
   if (s.type === 'ink') dict.InkList = s.ink;
-  if (s.type === 'freetext') {
-    dict.DA = PDFString.of(`/Helv ${Number(s.fontSize) || 12} Tf ${s.rgb.map((v) => v.toFixed(3)).join(' ')} rg`);
-    dict.Q = 0;
-    // For FreeText /C is the background colour; the text colour lives in /DA.
-    delete dict.C;
-  }
+  if (s.type === 'freetext') delete dict.C; // set by freeTextEntries (background)
   if (s.type === 'note') {
     dict.Name = 'Comment';
     dict.Open = false;
   }
   dict.AP = { N: H.makeAppearance(L, H, doc, s, rect) };
-  const ref = ctx.register(ctx.obj(dict));
+  const obj = ctx.obj(dict);
+  if (s.type === 'freetext') H.freeTextEntries(L, H, obj, s);
+  const ref = ctx.register(obj);
   page.node.addAnnot(ref);
   return H.idFromRef(ref);
 }
@@ -270,10 +289,31 @@ export function specFromDict(L, H, doc, dict) {
   if (type === 'freetext') {
     spec.text = text(dict.get(N('Contents')));
     const da = text(dict.get(N('DA')));
-    const m = /([\d.]+)\s+Tf/.exec(da);
-    spec.fontSize = m ? Number(m[1]) : 12;
+    const m = /\/(\w+)\s+([\d.]+)\s+Tf/.exec(da);
+    spec.fontSize = m && Number(m[2]) ? Number(m[2]) : 12;
     const color = /([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+rg/.exec(da);
     if (color) spec.rgb = [Number(color[1]), Number(color[2]), Number(color[3])];
+    // Our own style (exact round trip); otherwise what the standard keys say.
+    let style = null;
+    try {
+      style = JSON.parse(text(dict.get(N('PDFEditorStyle'))) || 'null');
+    } catch {
+      style = null;
+    }
+    if (style) {
+      Object.assign(spec, style);
+    } else {
+      const res = m ? m[1] : 'Helv';
+      spec.fontFamily = /^Ti/.test(res) ? 'Times' : /^Co/.test(res) ? 'Courier' : 'Helvetica';
+      spec.bold = /Bo|B[IO]$/.test(res) || /Bold/i.test(res);
+      spec.italic = /Ob|It|[BI][IO]$/.test(res.slice(2)) || /Italic|Oblique/i.test(res);
+      const q = lookup(dict.get(N('Q')));
+      spec.align = q instanceof PDFNumber ? ['left', 'center', 'right'][q.asNumber()] ?? 'left' : 'left';
+      const c = nums(dict.get(N('C')));
+      spec.fill = c && c.length === 3 ? H.rgbToHex(c) : null;
+      spec.border = null;
+    }
+    H.normalizeFreeText(H, spec);
   }
   return spec;
 }
@@ -321,3 +361,104 @@ export function createChildAnnotation(L, H, doc, args, extra) {
   return H.idFromRef(ref);
 }
 
+/** Fill in text-box defaults and derived colours (fillRgb, borderRgb). Mutates and returns spec. */
+export function normalizeFreeText(H, spec) {
+  spec.fontFamily = ['Helvetica', 'Times', 'Courier'].includes(spec.fontFamily) ? spec.fontFamily : 'Helvetica';
+  spec.fontSize = Math.max(4, Math.min(144, Number(spec.fontSize) || 12));
+  spec.bold = !!spec.bold;
+  spec.italic = !!spec.italic;
+  spec.underline = !!spec.underline;
+  spec.align = ['left', 'center', 'right'].includes(spec.align) ? spec.align : 'left';
+  spec.fill = spec.fill || null;
+  spec.border = spec.border || null;
+  spec.borderWidth = Math.max(0.5, Number(spec.borderWidth) || 1);
+  spec.fillRgb = spec.fill ? H.hexToRgb(spec.fill) : null;
+  spec.borderRgb = spec.border ? H.hexToRgb(spec.border) : null;
+  return spec;
+}
+
+/** The standard-14 font for a text box: { family, name, res, ascent }. */
+export function freeTextFont(spec) {
+  const family = spec.fontFamily === 'Times' ? 'Times' : spec.fontFamily === 'Courier' ? 'Courier' : 'Helvetica';
+  const k = (spec.bold ? 1 : 0) + (spec.italic ? 2 : 0);
+  const names = {
+    Helvetica: ['Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique', 'Helvetica-BoldOblique'],
+    Times: ['Times-Roman', 'Times-Bold', 'Times-Italic', 'Times-BoldItalic'],
+    Courier: ['Courier', 'Courier-Bold', 'Courier-Oblique', 'Courier-BoldOblique'],
+  };
+  const res = { Helvetica: ['Helv', 'HeBo', 'HeOb', 'HeBO'], Times: ['TiRo', 'TiBo', 'TiIt', 'TiBI'], Courier: ['Cour', 'CoBo', 'CoOb', 'CoBO'] };
+  // Ascent of the matching browser fonts (Arial / Times New Roman / Courier New), so the
+  // saved text lines up with what the editor showed.
+  const ascent = { Helvetica: 0.905, Times: 0.891, Courier: 0.833 };
+  return { family, name: names[family][k], res: res[family][k], ascent: ascent[family] };
+}
+
+/** Word-wrap a text box's text to its rect: { font, size, lineHeight, lines: [{ text, width, hex }] }. */
+export function layoutFreeText(L, H, spec, rect) {
+  const font = H.freeTextFont(spec);
+  const emb = L.StandardFontEmbedder.for(font.name);
+  const size = Number(spec.fontSize) || 12;
+  const bw = spec.border ? Math.max(0.5, Number(spec.borderWidth) || 1) : 0;
+  const width = Math.max(size, Math.abs(rect[2] - rect[0]) - 2 * (4 + bw));
+  const clean = (str) => [...str].map((ch) => (emb.encoding.canEncodeUnicodeCodePoint(ch.codePointAt(0)) ? ch : '?')).join('');
+  const measure = (str) => emb.widthOfTextAtSize(str, size);
+  const lines = [];
+  const text = clean(String(spec.text ?? '').replace(/\r\n?/g, '\n').replace(/\t/g, '    '));
+  for (const para of text.split('\n')) {
+    let line = '';
+    for (const tok of para.match(/\S+|\s+/g) || []) {
+      if (/^\s/.test(tok) || measure((line + tok).trimEnd()) <= width) {
+        line += tok;
+        continue;
+      }
+      if (line.trim()) lines.push(line.trimEnd());
+      line = '';
+      if (measure(tok) <= width) {
+        line = tok;
+        continue;
+      }
+      for (const ch of tok) {
+        if (line && measure(line + ch) > width) {
+          lines.push(line);
+          line = '';
+        }
+        line += ch;
+      }
+    }
+    lines.push(line.trimEnd());
+  }
+  return {
+    font,
+    size,
+    lineHeight: size * 1.2,
+    lines: lines.map((t) => ({ text: t, width: measure(t), hex: t ? emb.encodeText(t).toString() : '' })),
+  };
+}
+
+/** Grow a text box's rect downwards (top edge fixed) so all its text fits. */
+export function fitFreeText(L, H, spec, rect) {
+  const [x0, y0, x1, y1] = [Math.min(rect[0], rect[2]), Math.min(rect[1], rect[3]), Math.max(rect[0], rect[2]), Math.max(rect[1], rect[3])];
+  const lay = H.layoutFreeText(L, H, spec, [x0, y0, x1, y1]);
+  const bw = spec.border ? Math.max(0.5, Number(spec.borderWidth) || 1) : 0;
+  const need = Math.max(1, lay.lines.length) * lay.lineHeight + 2 * (4 + bw);
+  return y1 - y0 >= need ? [x0, y0, x1, y1] : [x0, y1 - need, x1, y1];
+}
+
+/** Standard + our own keys describing a text box's look (DA, Q, DS, C, BS, PDFEditorStyle). */
+export function freeTextEntries(L, H, dict, spec) {
+  const { PDFName, PDFString, PDFHexString } = L;
+  const N = (n) => PDFName.of(n);
+  const ctx = dict.context;
+  const font = H.freeTextFont(spec);
+  const rgb = (spec.rgb || [0, 0, 0]).map((v) => (Math.round(v * 1000) / 1000).toString()).join(' ');
+  const align = ['left', 'center', 'right'].indexOf(spec.align);
+  dict.set(N('DA'), PDFString.of(`/${font.res} ${spec.fontSize} Tf ${rgb} rg`));
+  dict.set(N('Q'), ctx.obj(Math.max(0, align)));
+  const css = { Helvetica: 'Helvetica', Times: 'Times', Courier: 'Courier' }[font.family];
+  dict.set(N('DS'), PDFString.of(`font: ${spec.italic ? 'italic ' : ''}${spec.bold ? 'bold ' : ''}${spec.fontSize}pt ${css}; text-align: ${spec.align}; color: ${H.rgbToHex(spec.rgb || [0, 0, 0])}`));
+  if (spec.fillRgb) dict.set(N('C'), ctx.obj(spec.fillRgb));
+  else dict.delete(N('C'));
+  dict.set(N('BS'), ctx.obj({ Type: 'Border', W: spec.border ? spec.borderWidth : 0, S: 'S' }));
+  const style = { fontFamily: spec.fontFamily, bold: spec.bold, italic: spec.italic, underline: spec.underline, align: spec.align, fill: spec.fill, border: spec.border, borderWidth: spec.borderWidth };
+  dict.set(N('PDFEditorStyle'), PDFHexString.fromText(JSON.stringify(style)));
+}

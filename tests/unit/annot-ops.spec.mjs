@@ -79,3 +79,36 @@ test('move/resize transforms geometry; replies, states and delete', async () => 
   expect(read.filter((a) => a.subtype === 'Text')).toHaveLength(0);
   expect(read).toHaveLength(annots.length - 1);
 });
+
+test('text boxes: wrapped text, Word-style formatting, box grows to fit, style round-trips', async () => {
+  const doc = await PDFLib.PDFDocument.load(fx('multipage.pdf'), { updateMetadata: false });
+  const text = 'The quick brown fox jumps over the lazy dog, again and again, until it wraps.';
+  const { value } = OPS.addAnnotations(PDFLib, doc, { items: [{ page: 0, spec: {
+    type: 'freetext', rect: [100, 600, 250, 620], text, fontSize: 12, color: '#0050c8',
+    fontFamily: 'Courier', bold: true, italic: true, underline: true, align: 'right', fill: '#fff3a3', border: '#1e2327', borderWidth: 2,
+  } }] }, ctx);
+  const id = value.ids[0];
+  const spec = OPS.annotationSpec(PDFLib, doc, { page: 0, id }, ctx).value;
+  expect(spec).toMatchObject({ type: 'freetext', text, fontFamily: 'Courier', bold: true, italic: true, underline: true, align: 'right', fill: '#fff3a3', border: '#1e2327', borderWidth: 2, color: '#0050c8' });
+  // 150 pt wide at 12 pt Courier: several lines, so the box grew downwards from its top edge.
+  expect(spec.rect[3]).toBe(620);
+  expect(spec.rect[3] - spec.rect[1]).toBeGreaterThan(12 * 1.2 * 3);
+  const dict = doc.context.lookup(HELPERS.refFromId(PDFLib, id));
+  const ap = dict.lookup(PDFLib.PDFName.of('AP')).lookup(PDFLib.PDFName.of('N'));
+  const content = new TextDecoder('latin1').decode(ap.getContents());
+  expect(content).toContain('/CoBO 12 Tf');
+  expect(content.match(/ Tj/g).length).toBeGreaterThanOrEqual(3);
+  expect(String(dict.get(PDFLib.PDFName.of('DA')))).toContain('/CoBO 12 Tf');
+  expect(dict.lookup(PDFLib.PDFName.of('Q')).asNumber()).toBe(2);
+  // Restyle and re-text: still one annotation, new font, wider box needs fewer lines.
+  OPS.updateAnnotation(PDFLib, doc, { page: 0, id, contents: 'Short', fontFamily: 'Times', bold: false, rect: [100, 500, 400, 520], from: spec.rect }, ctx);
+  const after = OPS.annotationSpec(PDFLib, doc, { page: 0, id }, ctx).value;
+  expect(after).toMatchObject({ text: 'Short', fontFamily: 'Times', bold: false, italic: true });
+  const bytes = await doc.save();
+  const pdf = await pdfjs.getDocument({ data: bytes, verbosity: 0 }).promise;
+  const annots = await (await pdf.getPage(1)).getAnnotations();
+  const ft = annots.find((a) => a.subtype === 'FreeText');
+  expect(ft.hasAppearance).toBe(true);
+  expect(ft.contentsObj.str).toBe('Short');
+});
+

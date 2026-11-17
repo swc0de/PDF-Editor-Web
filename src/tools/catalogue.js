@@ -5,6 +5,7 @@ import { defineTool } from './registry.js';
 const CATALOGUE = [
   // Read
   { id: 'read-mode', category: 'read', icon: 'bookOpen', milestone: 'M1' },
+  { id: 'add-text', category: 'read', icon: 'textBox', milestone: 'M8' },
   { id: 'comment', category: 'read', icon: 'messageSquare', milestone: 'M8' },
   { id: 'highlight', category: 'read', icon: 'highlighter', milestone: 'M8' },
   { id: 'draw', category: 'read', icon: 'pen', milestone: 'M8' },

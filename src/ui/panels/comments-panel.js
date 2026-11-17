@@ -249,7 +249,13 @@ export function registerCommentsPanel() {
           actionBtn(thread.resolved ? 'rotateCcw' : 'checkCircle', thread.resolved ? t('comments.reopen') : t('comments.resolve'), () => app.edit(tab, 'setReviewState', {
             page: thread.page, parent: root.id, state: thread.resolved ? 'None' : 'Completed', author: authorName() || t('comments.anonymous'),
           }, thread.resolved ? t('step.reopenComment') : t('step.resolveComment')), readOnly),
-          actionBtn('pen', t('comments.edit'), () => startEdit(root.id, 'edit'), readOnly),
+          actionBtn('pen', t('comments.edit'), async () => {
+            if (root.subtype !== 'FreeText') return startEdit(root.id, 'edit');
+            // Text boxes are edited on the page, like Word.
+            await jump(thread);
+            await tab.viewer.whenAnnotations(thread.page);
+            app.annotator.editTextBox(thread.page, root.id);
+          }, readOnly),
           actionBtn('trash', t('comments.delete'), () => app.edit(tab, 'deleteAnnotations', { page: thread.page, ids: [root.id] }, t('step.deleteAnnot', { type: typeName(typeKey(root)) })), readOnly));
         const el = h(`div.comment-thread${thread.resolved ? '.resolved' : ''}${selected ? '.selected' : ''}`, {
           role: 'listitem',

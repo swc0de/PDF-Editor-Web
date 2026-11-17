@@ -4,7 +4,7 @@ import { PDFDocument, PDFName } from 'pdf-lib';
 import { test, expect, openApp, openFixture, pageIn, shot } from './helpers.mjs';
 
 const panel = (page) => page.locator('#side-panel');
-const bar = (page) => page.getByRole('toolbar', { name: 'Comment tools', includeHidden: true });
+const bar = (page) => page.getByRole('toolbar', { name: 'Editing tools', includeHidden: true });
 const lastLabel = (page) => page.evaluate(() => window.pdfEditor.app.activeTab.model.history.current.label);
 /** Wait for a named step and for the view to have reloaded the changed document. */
 async function stepDone(page, label) {
@@ -114,9 +114,9 @@ test.describe('comments and annotations', () => {
     await drag(page, [440, 380], [600, 470], { via: [[480, 470], [520, 380], [560, 470]] });
     await stepDone(page, 'Add Drawing');
 
-    // Text box, typed inline.
+    // Text box: drawn like a rectangle, then typed into.
     await tool(page, 'Text box');
-    await clickOnPage(page, [80, 600]);
+    await drag(page, [80, 590], [320, 620]);
     await page.getByRole('textbox', { name: 'Text box text' }).fill('Hello text box');
     await page.keyboard.press('Control+Enter');
     await stepDone(page, 'Add Text box');
@@ -370,4 +370,77 @@ test.describe('comments and annotations', () => {
     await shot(page, 'm8-textbox-dark');
     await page.keyboard.press('Escape');
   });
+
+  test('text boxes work like Word: draw, type, format, edit in place', async ({ page }) => {
+    await openFixture(page, 'multipage.pdf');
+    await page.evaluate(() => window.pdfEditor.registry.getTool('add-text').run({ app: window.pdfEditor.app }));
+    await expect(bar(page).getByRole('button', { name: 'Text box', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await drag(page, [80, 380], [300, 410]);
+    const area = page.getByRole('textbox', { name: 'Text box text' });
+    await expect(area).toBeFocused();
+    await page.keyboard.type('A Word style text box whose text is long enough to wrap onto several lines.');
+    await page.keyboard.press('Control+b');
+    await expect(bar(page).getByRole('button', { name: 'Bold' })).toHaveAttribute('aria-pressed', 'true');
+    await bar(page).getByRole('combobox', { name: 'Font', exact: true }).selectOption('Times');
+    await bar(page).getByRole('combobox', { name: 'Font size' }).selectOption('18');
+    await bar(page).getByRole('button', { name: 'Center' }).click();
+    await bar(page).getByRole('combobox', { name: 'Fill colour' }).selectOption({ label: 'Yellow' });
+    await bar(page).getByRole('combobox', { name: 'Border' }).selectOption({ label: 'Black' });
+    await expect(area).toHaveCSS('font-weight', '700');
+    await expect(area).toHaveCSS('text-align', 'center');
+    await shot(page, 'm8-textbox-word-light');
+    // Click outside: saved as one step; back to the Select tool; the box is selected.
+    await clickOnPage(page, [600, 760]);
+    await stepDone(page, 'Add Text box');
+    await expect(area).toHaveCount(0);
+    await expect(bar(page).getByRole('button', { name: 'Select', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    const spec = () => page.evaluate(async () => {
+      const app = window.pdfEditor.app;
+      const proxy = await app.activeTab.pdf.getPage(1);
+      const ft = (await proxy.getAnnotations()).find((a) => a.subtype === 'FreeText');
+      return app.activeTab.model.query('annotationSpec', { page: 0, id: ft.id });
+    });
+    let s = await spec();
+    expect(s).toMatchObject({ type: 'freetext', fontFamily: 'Times', bold: true, italic: false, align: 'center', fontSize: 18, fill: '#fff3a3', border: '#1e2327' });
+    expect(s.text).toMatch(/^A Word style text box/);
+    // The text wrapped, so the box grew taller than the 30 px drawn.
+    const scale = await page.evaluate(() => window.pdfEditor.app.viewer.layout.scale);
+    expect(s.rect[3] - s.rect[1]).toBeGreaterThan(18 * 1.2 * 2);
+    expect(s.rect[3] - s.rect[1]).toBeGreaterThan(30 / scale);
+
+    // Restyle the selected box from the toolbar (one step).
+    await expect(page.locator('.annot-selection')).toBeVisible();
+    await bar(page).getByRole('button', { name: 'Italic' }).click();
+    await stepDone(page, 'Restyle Text box');
+    expect((await spec()).italic).toBe(true);
+
+    // Double-click to edit the text in place; Esc finishes (keeps the text).
+    // (The box is selected, so this lands on its selection frame.)
+    await page.locator('.annot-selection').dblclick();
+    await expect(area).toBeFocused();
+    await expect(area).toHaveValue(/^A Word style text box/);
+    await page.keyboard.press('Control+End');
+    await page.keyboard.type(' Edited!');
+    await page.keyboard.press('Escape');
+    await stepDone(page, 'Edit Text box');
+    s = await spec();
+    expect(s.text).toMatch(/Edited!$/);
+    expect(s).toMatchObject({ fontFamily: 'Times', bold: true, italic: true });
+    await page.keyboard.press('Control+z');
+    await stepDone(page, 'Restyle Text box');
+    expect((await spec()).text).not.toMatch(/Edited!$/);
+    await page.keyboard.press('Control+Shift+Z');
+    await stepDone(page, 'Edit Text box');
+
+    // Saved and reopened: a real FreeText annotation with its appearance; the style round-trips.
+    const path = await save(page, 'textbox.pdf');
+    await page.evaluate(() => document.querySelectorAll('.viewer').forEach((v) => v.classList.add('stale-viewer')));
+    await page.setInputFiles('#file-input', path);
+    await page.waitForSelector('.viewer-host:not([hidden]) .viewer:not(.stale-viewer) .page[data-page-number="1"][data-state="rendered"]');
+    const ft = (await annotationsOf(page)).find((a) => a.subtype === 'FreeText');
+    expect(ft.hasAppearance).toBe(true);
+    expect(ft.contents).toMatch(/Edited!$/);
+    expect(await spec()).toMatchObject({ fontFamily: 'Times', bold: true, italic: true, align: 'center', fill: '#fff3a3' });
+  });
 });
+

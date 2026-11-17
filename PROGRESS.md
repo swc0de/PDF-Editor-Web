@@ -249,4 +249,15 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   screenshots), `tests/unit/form-ops.spec.mjs` (4). M8 tests now find the comment toolbar by role (two toolbars exist).
 - **Known limitations:** no form JavaScript; push buttons inert; Helvetica appearances; no radio-group authoring; visual
   signatures only.
+- **Change requested during M9 review (text boxes, an M8 feature):** "draw a rectangle like the shape button, then it's a
+  text box; editing tools more like Word". Now: the Text box tool (and a new **Add text** tool in the catalogue, category
+  Read) drags a rectangle, then an on-page editor (`.annot-texteditor` textarea) opens; Word-style formatting in the toolbar
+  (font Helvetica/Times/Courier, size 8–72, B/I/U with Ctrl+B/I/U, align L/C/R, text colour, fill, border); click outside
+  or Esc finishes (keeps text; one step "Add/Edit Text box"); after inserting, the tool returns to Select; double-click
+  (also on the selection frame), Enter, the text tool on an existing box, or Comments → Edit reopens the editor in place;
+  restyling a selected box is "Restyle Text box". Toolbar renamed "Editing tools"; palette commands "Edit: …".
+  Worker: `layoutFreeText` (word-wrap with pdf-lib `StandardFontEmbedder` metrics), `fitFreeText` (box grows down, top
+  fixed), `freeTextEntries` (DA/Q/DS/C(fill)/BS + `/PDFEditorStyle` JSON for exact round-trip), `normalizeFreeText`,
+  `freeTextFont`; new read-only op `annotationSpec` (toolbar reads a selected box's style). Tests: new e2e "text boxes work
+  like Word", unit test for wrapping/style round-trip.
 

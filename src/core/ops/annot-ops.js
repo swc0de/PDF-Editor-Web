@@ -59,13 +59,19 @@ export function updateAnnotation(PDFLib, doc, args, { helpers: H }) {
     dict.set(N('CA'), PDFNumber.of(Number(args.opacity)));
     if (spec) spec.opacity = Number(args.opacity);
   }
-  if (args.width !== undefined && spec) {
+  if (args.width !== undefined && spec && spec.type !== 'freetext') {
     spec.width = Number(args.width);
     dict.set(N('BS'), doc.context.obj({ Type: 'Border', W: spec.width, S: 'S' }));
   }
   if (spec?.type === 'freetext') {
+    // Text boxes: font, size, B/I/U, alignment, fill and border; the box grows to fit.
     if (args.fontSize) spec.fontSize = Number(args.fontSize);
-    dict.set(N('DA'), PDFString.of(`/Helv ${spec.fontSize || 12} Tf ${spec.rgb.map((v) => v.toFixed(3)).join(' ')} rg`));
+    for (const key of ['fontFamily', 'bold', 'italic', 'underline', 'align', 'fill', 'border', 'borderWidth']) {
+      if (args[key] !== undefined) spec[key] = args[key];
+    }
+    H.normalizeFreeText(H, spec);
+    rect = H.fitFreeText(PDFLib, H, spec, rect);
+    H.freeTextEntries(PDFLib, H, dict, spec);
   }
   if (spec) {
     if (spec.type === 'note' && args.rect) rect = [rect[0], rect[1], rect[0] + 20, rect[1] + 20];
@@ -127,4 +133,16 @@ export function setReviewState(PDFLib, doc, args, { helpers: H }) {
     State: PDFLib.PDFString.of(args.state),
   });
   return { affected: [args.page], value: { id } };
+}
+
+/** Read-only: an annotation's spec (style, text, stored rect) for the editing UI. args: { page, id } */
+export function annotationSpec(PDFLib, doc, args, { helpers: H }) {
+  const { PDFName, PDFArray } = PDFLib;
+  const dict = doc.context.lookup(H.refFromId(PDFLib, args.id));
+  if (!dict) throw new Error(`No annotation ${args.id}`);
+  const spec = H.specFromDict(PDFLib, H, doc, dict);
+  const rect = dict.lookup(PDFName.of('Rect'), PDFArray).asArray().map((v) => v.asNumber());
+  if (!spec) return { value: { rect } };
+  const { rgb, fillRgb, borderRgb, ...rest } = spec;
+  return { value: { ...rest, color: H.rgbToHex(rgb), rect } };
 }

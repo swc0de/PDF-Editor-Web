@@ -20,7 +20,7 @@ export const DEFAULT_STYLES = {
   underline: { color: '#0050c8', opacity: 1 },
   strikeout: { color: '#b70228', opacity: 1 },
   note: { color: '#ffd400', opacity: 1 },
-  freetext: { color: '#1e2327', opacity: 1, fontSize: 14 },
+  freetext: { color: '#1e2327', opacity: 1, fontSize: 12, fontFamily: 'Helvetica', bold: false, italic: false, underline: false, align: 'left', fill: null, border: null, borderWidth: 1 },
   square: { color: '#b70228', opacity: 1, width: 2 },
   circle: { color: '#0050c8', opacity: 1, width: 2 },
   line: { color: '#b70228', opacity: 1, width: 2 },
@@ -33,6 +33,13 @@ const MOVABLE = new Set(['Square', 'Circle', 'Line', 'Ink', 'FreeText', 'Text', 
 const FIXED_SIZE = new Set(['Text', 'FileAttachment', 'Caret']);
 const SUBTYPE_OF_TOOL = { highlight: 'Highlight', underline: 'Underline', strikeout: 'StrikeOut', note: 'Text', freetext: 'FreeText', square: 'Square', circle: 'Circle', line: 'Line', ink: 'Ink' };
 const SUBTYPE_TOOL = { Highlight: 'highlight', Underline: 'underline', StrikeOut: 'strikeout', Text: 'note', FreeText: 'freetext', Square: 'square', Circle: 'circle', Line: 'line', Ink: 'ink' };
+
+/** Browser fonts matching the PDF standard fonts (metric-compatible where possible). */
+export const FONT_CSS = {
+  Helvetica: 'Helvetica, Arial, "Liberation Sans", sans-serif',
+  Times: '"Times New Roman", Times, "Liberation Serif", serif',
+  Courier: '"Courier New", Courier, "Liberation Mono", monospace',
+};
 
 const norm = (r) => [Math.min(r[0], r[2]), Math.min(r[1], r[3]), Math.max(r[0], r[2]), Math.max(r[1], r[3])];
 
@@ -108,12 +115,17 @@ export class Annotator extends EventTarget {
 
   /** Style shown in the toolbar: the selection's own, or the tool's last-used. */
   currentStyle() {
+    if (this.editing) return this.editing.style;
     const sel = this.selected();
     const tool = this.styleTool();
     if (!tool) return null;
     const base = this.style(tool);
     if (!sel) return base;
     const d = sel.data;
+    if (d.subtype === 'FreeText') {
+      const spec = this.selSpec?.id === d.id ? this.selSpec.spec : null;
+      return spec ? { ...base, ...spec } : base;
+    }
     const c = d.subtype === 'FreeText' ? d.defaultAppearanceData?.fontColor ?? d.color : d.color;
     const hex = c && c.length >= 3 ? `#${[...c].slice(0, 3).map((v) => v.toString(16).padStart(2, '0')).join('')}` : base.color;
     return {
@@ -126,9 +138,18 @@ export class Annotator extends EventTarget {
 
   /** Change style: remembered for the tool, and applied to the selection (one undo step). */
   setStyle(patch) {
-    const tool = this.styleTool();
+    const tool = this.editing ? 'freetext' : this.styleTool();
     if (tool) setPref(`annot.style.${tool}`, { ...getPref(`annot.style.${tool}`, {}), ...patch });
+    if (this.editing) {
+      // While typing: restyle the editor; it's saved with the text (one step).
+      Object.assign(this.editing.style, patch);
+      this.applyEditorStyle();
+      this.toolbar.sync();
+      this.editing.area.focus();
+      return;
+    }
     const sel = this.selected();
+    if (sel?.data.subtype === 'FreeText' && this.selSpec?.id === sel.data.id) Object.assign(this.selSpec.spec, patch);
     if (sel && !sel.tab.model.readOnly && Object.keys(patch).length) {
       const { tab, page, data } = sel;
       this.app.edit(tab, 'updateAnnotation', { page, id: data.id, ...patch }, t('step.styleAnnot', { type: this.typeName(data.subtype, data) }));
@@ -151,6 +172,7 @@ export class Annotator extends EventTarget {
     this.app.formEditor?.deactivate();
     this.app.forms?.cancelPlacing();
     this.cancelDraft();
+    this.finishTextEditor();
     this.tool = tool;
     if (DRAW_TOOLS.has(tool)) this.deselect();
     this.syncHostClasses();
@@ -162,6 +184,7 @@ export class Annotator extends EventTarget {
 
   deactivate() {
     this.cancelDraft();
+    this.finishTextEditor();
     this.tool = null;
     this.syncHostClasses();
     this.toolbar.hide();
@@ -189,8 +212,19 @@ export class Annotator extends EventTarget {
     const main = this.app.shell.main;
     main.addEventListener('pointerdown', (e) => this.onPointerDown(e));
     main.addEventListener('dblclick', (e) => {
+      // A selected annotation's frame sits on top of it: double-click works there too.
+      const frame = e.target.closest?.('.annot-selection');
+      const sel = frame ? this.selected() : null;
+      if (sel) {
+        if (sel.data.subtype === 'FreeText') this.editTextBox(sel.page, sel.data.id);
+        else this.editComment(sel.data.id);
+        return;
+      }
       const box = e.target.closest?.('.annot-box');
-      if (box) this.editComment(box.dataset.annotId);
+      if (!box) return;
+      const g = this.pageAt(box);
+      if (box.dataset.subtype === 'FreeText' && g) this.editTextBox(g.page, box.dataset.annotId);
+      else this.editComment(box.dataset.annotId);
     });
     document.addEventListener('mouseup', () => {
       if (MARKUP_TOOLS.has(this.tool)) setTimeout(() => this.applyMarkupFromSelection(), 0);
@@ -212,16 +246,21 @@ export class Annotator extends EventTarget {
     this.app.addEventListener('documentopened', (e) => {
       const viewer = e.detail.tab.viewer;
       for (const type of ['annotations', 'zoomchange', 'layoutchange', 'docchange']) viewer.addEventListener(type, reframe);
+      viewer.addEventListener('docchange', () => {
+        if (this.selection && e.detail.tab === this.tab) this.loadSelSpec();
+      });
+      viewer.addEventListener('zoomchange', () => this.applyEditorStyle());
     });
   }
 
   /** Esc: cancel a draft, else deselect, else leave annotation mode. */
   get canEscape() {
-    return !!(this.draft || this.selected() || this.tool);
+    return !!(this.editing || this.draft || this.selected() || this.tool);
   }
 
   escape() {
-    if (this.draft) this.cancelDraft();
+    if (this.editing) this.finishTextEditor();
+    else if (this.draft) this.cancelDraft();
     else if (this.selected()) this.deselect();
     else this.deactivate();
   }
@@ -249,9 +288,25 @@ export class Annotator extends EventTarget {
       this.startTransform(e, handle?.dataset.handle ?? 'move');
       return;
     }
+    if (e.target.closest?.('.annot-texteditor')) return;
     if (DRAW_TOOLS.has(this.tool)) {
       const g = this.pageAt(e.target);
-      if (g) this.startDraw(e, g);
+      if (!g) return;
+      if (this.tool === 'freetext') {
+        // Clicking an existing text box with the text tool edits it (like Word).
+        const [x, y] = g.local(e.clientX, e.clientY);
+        const hit = g.view.annotations?.find((a) => {
+          if (a.subtype !== 'FreeText') return false;
+          const [x0, y0, x1, y1] = g.toCss(a.rect);
+          return x >= x0 && x <= x1 && y >= y0 && y <= y1;
+        });
+        if (hit) {
+          e.preventDefault();
+          this.editTextBox(g.page, hit.id);
+          return;
+        }
+      }
+      this.startDraw(e, g);
       return;
     }
     if (box) {
@@ -271,9 +326,27 @@ export class Annotator extends EventTarget {
 
   select(page, id) {
     this.selection = { tabId: this.tab.id, page, id };
+    this.selSpec = null;
     this.renderSelection();
     this.toolbar.sync();
+    this.loadSelSpec();
     this.dispatchEvent(new CustomEvent('selectionchange', { detail: { page, id } }));
+  }
+
+  /** Text boxes keep their full style (font, B/I/U…) in the PDF; fetch it for the toolbar. */
+  async loadSelSpec() {
+    const sel = this.selection;
+    const tab = this.tab;
+    if (!sel || !tab || tab.id !== sel.tabId) return;
+    const spec = await tab.model.query('annotationSpec', { page: sel.page, id: sel.id }).catch(() => null);
+    if (this.selection !== sel) return;
+    if (spec?.type === 'freetext') {
+      const { type, rect, text, ...style } = spec;
+      this.selSpec = { id: sel.id, spec: style };
+    } else {
+      this.selSpec = null;
+    }
+    if (this.tool) this.toolbar.sync();
   }
 
   deselect() {
@@ -410,14 +483,17 @@ export class Annotator extends EventTarget {
         .then((id) => id && this.editComment(id));
       return;
     }
-    if (tool === 'freetext') {
-      this.startTextBox(g, x, y, style);
-      return;
-    }
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS, 'svg');
     svg.setAttribute('class', 'annot-draft');
-    const shape = document.createElementNS(svgNS, tool === 'square' ? 'rect' : tool === 'circle' ? 'ellipse' : tool === 'ink' ? 'polyline' : 'line');
+    const boxTool = tool === 'square' || tool === 'freetext';
+    const shape = document.createElementNS(svgNS, boxTool ? 'rect' : tool === 'circle' ? 'ellipse' : tool === 'ink' ? 'polyline' : 'line');
+    if (tool === 'freetext') {
+      // A text box is drawn like a rectangle (dashed), then typed into.
+      shape.setAttribute('stroke-dasharray', '4 3');
+      style.width = 1 / this.viewer.layout.scale;
+      style.color = '#b70228';
+    }
     shape.setAttribute('stroke', style.color);
     shape.setAttribute('stroke-width', String((style.width ?? 1) * this.viewer.layout.scale));
     shape.setAttribute('stroke-opacity', String(style.opacity ?? 1));
@@ -432,7 +508,7 @@ export class Annotator extends EventTarget {
     const draw = () => {
       const [x0, y0] = points[0];
       const [x1, y1] = end;
-      if (tool === 'square') {
+      if (boxTool) {
         shape.setAttribute('x', Math.min(x0, x1)); shape.setAttribute('y', Math.min(y0, y1));
         shape.setAttribute('width', Math.abs(x1 - x0)); shape.setAttribute('height', Math.abs(y1 - y0));
       } else if (tool === 'circle') {
@@ -458,6 +534,17 @@ export class Annotator extends EventTarget {
       if (!this.draft) return;
       this.draft = null;
       const [x0, y0] = points[0];
+      if (tool === 'freetext') {
+        svg.remove();
+        // A click (no drag) gets a 200 pt wide, one-line box.
+        const s = this.viewer.layout.scale;
+        const st = this.style('freetext');
+        let box = norm([x0, y0, end[0], end[1]]);
+        if (box[2] - box[0] < 12) box = [x0, y0, x0 + 200 * s, Math.max(box[3], y0 + (st.fontSize * 1.2 + 8) * s)];
+        if (box[3] - box[1] < (st.fontSize * 1.2 + 8) * s) box[3] = box[1] + (st.fontSize * 1.2 + 8) * s;
+        this.openTextEditor({ g, box, text: '', style: st, existing: null });
+        return;
+      }
       const big = Math.hypot(end[0] - x0, end[1] - y0) >= 4 || (tool === 'ink' && points.length > 2);
       if (!big) {
         svg.remove();
@@ -475,49 +562,161 @@ export class Annotator extends EventTarget {
     window.addEventListener('pointerup', up);
   }
 
-  startTextBox(g, x, y, style) {
-    this.cancelDraft();
-    const scale = this.viewer.layout.scale;
-    const size = style.fontSize ?? 14;
+  // ---------------------------------------------------- text box editor
+
+  /** Edit an existing text box in place (double-click, Enter, or the text tool). */
+  async editTextBox(page, id) {
+    const tab = this.tab;
+    if (!tab) return;
+    if (tab.model.readOnly) {
+      toast(t(`edit.readOnly.${tab.model.readOnly}`), { kind: 'error' });
+      return;
+    }
+    this.finishTextEditor();
+    const spec = await tab.model.query('annotationSpec', { page, id }).catch(() => null);
+    if (!spec || spec.type !== 'freetext' || this.tab !== tab) return;
+    if (!this.tool) this.activate('select');
+    const view = tab.viewer.views[page];
+    if (!view?.baseViewport) return;
+    const g = this.geometry(view);
+    const { type, rect, text, ...style } = spec;
+    this.openTextEditor({ g, box: g.toCss(rect), text: text ?? '', style: { ...this.style('freetext'), ...style }, existing: { page, id, rect } });
+  }
+
+  /** The on-page text editor: a box you type into, formatted from the toolbar (Word-like). */
+  openTextEditor({ g, box, text, style, existing }) {
+    this.finishTextEditor();
+    this.deselect();
     const area = h('textarea.annot-textbox', {
-      rows: '1',
       'aria-label': t('annot.textBoxLabel'),
       placeholder: t('annot.textBoxPlaceholder'),
+      spellcheck: true,
     });
-    Object.assign(area.style, {
-      left: `${x}px`,
-      top: `${y}px`,
-      fontSize: `${size * scale}px`,
-      lineHeight: '1.2',
-      padding: `${4 * scale}px`,
-      color: style.color,
-    });
-    g.view.el.append(area);
-    let done = false;
-    const finish = (commit) => {
-      if (done) return;
-      done = true;
-      this.draft = null;
-      const text = area.value.replace(/\s+$/, '');
-      const box = [area.offsetLeft, area.offsetTop, area.offsetLeft + area.offsetWidth, area.offsetTop + area.offsetHeight];
-      area.remove();
-      if (!commit || !text) return;
-      const spec = { type: 'freetext', rect: g.cssToPdfRect(box), text, fontSize: size, color: style.color, opacity: style.opacity };
-      this.create([{ page: g.page, spec }], t('step.addAnnot', { type: this.typeName('FreeText') }));
+    area.value = text;
+    const wrap = h('div.annot-texteditor', area);
+    Object.assign(wrap.style, { left: `${box[0]}px`, top: `${box[1]}px`, width: `${box[2] - box[0]}px` });
+    g.view.el.append(wrap);
+    const editing = {
+      g, wrap, area, existing,
+      page: g.page,
+      minHeight: box[3] - box[1],
+      style: { ...style },
+      start: { text, style: JSON.stringify(style) },
     };
+    this.editing = editing;
+    this.applyEditorStyle();
+    const fit = () => {
+      area.style.height = 'auto';
+      area.style.height = `${Math.max(editing.minHeight, area.scrollHeight)}px`;
+    };
+    editing.fit = fit;
+    area.addEventListener('input', fit);
     area.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
+      const mod = e.ctrlKey || e.metaKey;
+      if (e.key === 'Escape' || (e.key === 'Enter' && mod)) {
         e.preventDefault();
         e.stopPropagation();
-        finish(false);
-      } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        this.finishTextEditor();
+        return;
+      }
+      const toggle = mod && !e.shiftKey && !e.altKey ? { b: 'bold', i: 'italic', u: 'underline' }[e.key.toLowerCase()] : null;
+      if (toggle) {
         e.preventDefault();
-        finish(true);
+        e.stopPropagation();
+        this.setStyle({ [toggle]: !editing.style[toggle] });
       }
     });
-    area.addEventListener('blur', () => finish(true));
-    this.draft = { cancel: () => finish(false) };
-    requestAnimationFrame(() => area.focus());
+    // Finish when the user clicks anywhere outside the box and the toolbar.
+    const outside = (e) => {
+      if (e.target.closest?.('.annot-texteditor, .annot-toolbar')) return;
+      this.finishTextEditor();
+    };
+    const focusOut = () => setTimeout(() => {
+      const a = document.activeElement;
+      if (this.editing === editing && !a?.closest?.('.annot-texteditor, .annot-toolbar') && !document.querySelector('dialog[open]')) this.finishTextEditor();
+    }, 0);
+    document.addEventListener('pointerdown', outside, true);
+    area.addEventListener('focusout', focusOut);
+    editing.cleanup = () => document.removeEventListener('pointerdown', outside, true);
+    this.toolbar.show();
+    this.toolbar.sync();
+    requestAnimationFrame(() => {
+      fit();
+      area.focus();
+      area.setSelectionRange(area.value.length, area.value.length);
+    });
+  }
+
+  /** Apply the editor's style (font, size, B/I/U, alignment, colours) as CSS. */
+  applyEditorStyle() {
+    const ed = this.editing;
+    if (!ed) return;
+    const st = ed.style;
+    const s = this.viewer.layout.scale;
+    const bw = st.border ? Math.max(0.5, Number(st.borderWidth) || 1) : 0;
+    Object.assign(ed.area.style, {
+      fontFamily: FONT_CSS[st.fontFamily] ?? FONT_CSS.Helvetica,
+      fontSize: `${st.fontSize * s}px`,
+      fontWeight: st.bold ? '700' : '400',
+      fontStyle: st.italic ? 'italic' : 'normal',
+      textDecoration: st.underline ? 'underline' : 'none',
+      textAlign: st.align || 'left',
+      color: st.color,
+      padding: `${4 * s}px`,
+      lineHeight: '1.2',
+      // Editing an existing box hides its saved look underneath.
+      background: st.fill || (ed.existing ? '#fff' : 'transparent'),
+      borderWidth: `${bw * s}px`,
+      borderStyle: bw ? 'solid' : 'none',
+      borderColor: st.border || 'transparent',
+    });
+    ed.fit?.();
+  }
+
+  /** Save (or drop) what's in the text editor: one undo step. */
+  async finishTextEditor() {
+    const ed = this.editing;
+    if (!ed) return;
+    this.editing = null;
+    ed.cleanup();
+    const text = ed.area.value.replace(/\s+$/, '');
+    const { wrap, area, g } = ed;
+    const box = [wrap.offsetLeft, wrap.offsetTop, wrap.offsetLeft + area.offsetWidth, wrap.offsetTop + area.offsetHeight];
+    wrap.remove();
+    this.toolbar.sync();
+    const tab = this.tab;
+    if (!tab) return;
+    const st = ed.style;
+    const style = {
+      fontSize: st.fontSize, fontFamily: st.fontFamily, bold: !!st.bold, italic: !!st.italic, underline: !!st.underline,
+      align: st.align, fill: st.fill || null, border: st.border || null, borderWidth: st.borderWidth ?? 1, color: st.color, opacity: st.opacity ?? 1,
+    };
+    const rect = g.cssToPdfRect(box);
+    const name = this.typeName('FreeText');
+    if (!ed.existing) {
+      // Like Word: after inserting a text box you're back to selecting (right
+      // away, so the click that finished this box doesn't start another).
+      if (this.tool === 'freetext') {
+        this.tool = 'select';
+        this.syncHostClasses();
+        this.toolbar.sync();
+        this.dispatchEvent(new CustomEvent('toolchange'));
+      }
+      if (!text) return;
+      await this.create([{ page: ed.page, spec: { type: 'freetext', rect, text, contents: text, ...style } }], t('step.addAnnot', { type: name }));
+      return;
+    }
+    const { page, id } = ed.existing;
+    if (!text) {
+      await this.app.edit(tab, 'deleteAnnotations', { page, ids: [id] }, t('step.deleteAnnot', { type: name }));
+      return;
+    }
+    if (text === ed.start.text && JSON.stringify(st) === ed.start.style) {
+      this.select(page, id);
+      return;
+    }
+    await this.app.edit(tab, 'updateAnnotation', { page, id, from: ed.existing.rect, rect, contents: text, ...style }, t('step.editTextBox'));
+    this.select(page, id);
   }
 
   cancelDraft() {

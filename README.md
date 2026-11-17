@@ -229,7 +229,17 @@ their target.
 
 ### Comments and annotations (`src/ui/annotate/`, `src/core/ops/annot-*.js`)
 
-- **Tools** (contextual toolbar, docked above the page while commenting):
+- **Text boxes work like Word** (*Add text* in the Tools panel, or the Text
+  box tool): drag a rectangle, type straight into it (text wraps to the box's
+  width; the box grows to fit), and format it from the toolbar: font
+  (Helvetica / Times / Courier), size, **bold** / *italic* / underline
+  (Ctrl+B / I / U), alignment, text colour, fill and border. Click outside or
+  press Esc to finish; double-click a text box (or select it and press Enter)
+  to edit it in place again. While a box is selected, the formatting controls
+  restyle it. The style is kept in the PDF (`/DA`, `/Q`, `/DS`, `/C`, `/BS`,
+  plus our own `/PDFEditorStyle`) and drawn into the appearance stream with
+  the standard fonts, wrapped the same way the editor shows it.
+- **Tools** (contextual "Editing tools" toolbar, docked above the page):
   select · highlight, underline and strike-out (select text with the tool on,
   or select text first and then pick the tool) · sticky note · text box ·
   rectangle · ellipse · line · arrow · freehand drawing. Colour (6 swatches +
@@ -391,8 +401,9 @@ it's skipped and so are its tests.
   doesn't use it, so its subsets show as "Embedded".
 
 - Comments: replies show in the Comments panel, not as pop-ups on the page.
-  Text boxes use Helvetica (WinAnsi): characters outside it are drawn as "?"
-  in the appearance (the comment text itself keeps them). Polygon, polyline,
+  Text boxes use the standard PDF fonts (Helvetica, Times, Courier; WinAnsi):
+  characters outside them are drawn as "?" in the appearance (the text itself
+  keeps them). Formatting applies to the whole box, not to single words. Polygon, polyline,
   squiggly and stamp annotations can't be created yet.
 
 - Forms: JavaScript (calculations, validation, formatting, button actions)
