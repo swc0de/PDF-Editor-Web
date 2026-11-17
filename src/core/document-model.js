@@ -38,6 +38,7 @@ export class DocumentModel extends EventTarget {
       affected: null,
       time: Date.now(),
       initial: true,
+      readOnly,
     }, limits);
     this.savedEntry = clean ? this.history.current : null;
     this.readOnly = readOnly;
@@ -127,6 +128,29 @@ export class DocumentModel extends EventTarget {
     });
   }
 
+  /**
+   * Record bytes made outside the pdf-lib worker (e.g. qpdf removing
+   * encryption) as one undo step. `readOnly` is the state that goes with them
+   * (null = editable); undo/redo restore each step's own state.
+   */
+  commitBytes(bytes, { label, pageCount, readOnly = null }) {
+    return this.enqueue(async () => {
+      const from = this.history.current;
+      const entry = {
+        version: newVersion(),
+        label,
+        bytes,
+        pageCount: pageCount ?? from.pageCount,
+        affected: null,
+        time: Date.now(),
+        readOnly,
+      };
+      this.history.push(entry);
+      await this.changed({ from, to: entry, affected: null, structural: true });
+      return true;
+    });
+  }
+
   /** A read-only operation on the current state (nothing is recorded). */
   query(op, args) {
     return this.enqueue(async () => {
@@ -161,6 +185,8 @@ export class DocumentModel extends EventTarget {
   }
 
   async changed(change) {
+    // Steps that know their read-only state (the opened file, commitBytes) restore it.
+    if (change.to && change.to.readOnly !== undefined) this.setReadOnly(change.to.readOnly);
     try {
       await this.onChange?.(change);
     } finally {
@@ -171,6 +197,8 @@ export class DocumentModel extends EventTarget {
 
   /** Mark the document read-only (e.g. it turned out to be encrypted). */
   setReadOnly(reason) {
+    const cur = this.history.current;
+    if (cur?.initial) cur.readOnly = reason; // the opened file's own state, restored by undo
     if (this.readOnly === reason) return;
     this.readOnly = reason;
     this.emit('readonlychange');

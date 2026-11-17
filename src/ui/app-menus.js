@@ -28,6 +28,8 @@ export function buildMenus(app) {
         item('file.save'),
         item('file.saveAs'),
         'separator',
+        item('file.print'),
+        'separator',
         item('tab.close'),
         item('tab.closeOthers'),
         item('tab.reopen'),

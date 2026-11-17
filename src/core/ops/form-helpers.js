@@ -13,7 +13,7 @@ export function annotPageIndex(L, doc) {
   const { PDFName, PDFArray } = L;
   const map = new Map();
   doc.getPages().forEach((page, i) => {
-    const annots = page.node.lookup(PDFName.of('Annots'), PDFArray);
+    const annots = page.node.lookupMaybe(PDFName.of('Annots'), PDFArray);
     if (annots) for (const ref of annots.asArray()) map.set(ref.toString(), i);
   });
   return map;
@@ -122,7 +122,7 @@ export function flattenFields(L, H, doc, form) {
       if (!(stream instanceof PDFStream)) continue;
       const streamRef = normal instanceof PDFRef ? normal : ctx.register(stream);
       const r = widget.getRectangle();
-      const bbox = stream.dict.lookup(N('BBox'), PDFArray)?.asArray().map((v) => v.asNumber()) ?? [0, 0, r.width, r.height];
+      const bbox = stream.dict.lookupMaybe(N('BBox'), PDFArray)?.asArray().map((v) => v.asNumber()) ?? [0, 0, r.width, r.height];
       const bw = Math.max(1e-6, bbox[2] - bbox[0]);
       const bh = Math.max(1e-6, bbox[3] - bbox[1]);
       const sx = r.width / bw;

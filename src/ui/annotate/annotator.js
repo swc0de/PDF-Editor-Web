@@ -171,6 +171,7 @@ export class Annotator extends EventTarget {
     this.app.closeOrganizer?.();
     this.app.formEditor?.deactivate();
     this.app.forms?.cancelPlacing();
+    this.app.redactor?.deactivate();
     this.cancelDraft();
     this.finishTextEditor();
     this.tool = tool;
@@ -314,7 +315,7 @@ export class Annotator extends EventTarget {
       if (!g) return;
       const data = g.view.annotations?.find((a) => a.id === box.dataset.annotId);
       if (!data) return;
-      if (!this.tool) this.activate('select');
+      if (!this.tool && !this.app.redactor?.active) this.activate('select');
       this.select(g.page, data.id);
       if (MOVABLE.has(data.subtype) && !this.tab.model.readOnly) this.startTransform(e, 'move');
       return;
@@ -730,36 +731,10 @@ export class Annotator extends EventTarget {
   /** Turn the current text selection into highlight/underline/strike-out quads. */
   applyMarkupFromSelection() {
     if (!MARKUP_TOOLS.has(this.tool) || !this.tab) return false;
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || !sel.rangeCount) return false;
-    const range = sel.getRangeAt(0);
-    if (!this.tab.host.contains(range.commonAncestorContainer)) return false;
-    const byPage = new Map();
-    for (const r of range.getClientRects()) {
-      if (r.width < 1 || r.height < 1) continue;
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
-      const view = this.viewer.views.find((v) => {
-        if (!v.textLayer || !v.baseViewport) return false;
-        const b = v.el.getBoundingClientRect();
-        return cx >= b.left && cx <= b.right && cy >= b.top && cy <= b.bottom && r.height < b.height / 3;
-      });
-      if (!view) continue;
-      if (!byPage.has(view.index)) byPage.set(view.index, []);
-      byPage.get(view.index).push(r);
-    }
-    if (!byPage.size) return false;
-    const items = [];
-    for (const [page, rects] of byPage) {
-      const g = this.geometry(this.viewer.views[page]);
-      const quads = mergeLineRects(rects.map((r) => {
-        const [x0, y0] = g.local(r.left, r.top);
-        return [x0, y0, x0 + r.width, y0 + r.height];
-      })).map(([x0, y0, x1, y1]) => [...g.toPdf(x0, y0), ...g.toPdf(x1, y0), ...g.toPdf(x0, y1), ...g.toPdf(x1, y1)]);
-      const style = this.style();
-      items.push({ page, spec: { type: this.tool, quads, color: style.color, opacity: style.opacity, contents: range.toString().slice(0, 500) } });
-    }
-    sel.removeAllRanges();
+    const picked = selectionQuads(this.tab, this.viewer);
+    if (!picked) return false;
+    const style = this.style();
+    const items = picked.pages.map(({ page, quads }) => ({ page, spec: { type: this.tool, quads, color: style.color, opacity: style.opacity, contents: picked.text.slice(0, 500) } }));
     const subtype = { highlight: 'Highlight', underline: 'Underline', strikeout: 'StrikeOut' }[this.tool];
     this.create(items, t('step.addAnnot', { type: this.typeName(subtype) }));
     return true;
@@ -769,6 +744,44 @@ export class Annotator extends EventTarget {
   static toolFor(subtype) {
     return SUBTYPE_TOOL[subtype] ?? null;
   }
+}
+
+/**
+ * The current text selection inside a tab's viewer as QuadPoints per page
+ * (PDF space), then cleared: { text, pages: [{ page, quads }] } or null.
+ */
+export function selectionQuads(tab, viewer) {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
+  const range = sel.getRangeAt(0);
+  if (!tab.host.contains(range.commonAncestorContainer)) return null;
+  const byPage = new Map();
+  for (const r of range.getClientRects()) {
+    if (r.width < 1 || r.height < 1) continue;
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const view = viewer.views.find((v) => {
+      if (!v.textLayer || !v.baseViewport) return false;
+      const b = v.el.getBoundingClientRect();
+      return cx >= b.left && cx <= b.right && cy >= b.top && cy <= b.bottom && r.height < b.height / 3;
+    });
+    if (!view) continue;
+    if (!byPage.has(view.index)) byPage.set(view.index, []);
+    byPage.get(view.index).push(r);
+  }
+  if (!byPage.size) return null;
+  const pages = [];
+  for (const [page, rects] of byPage) {
+    const g = pageGeometry(viewer, viewer.views[page]);
+    const quads = mergeLineRects(rects.map((r) => {
+      const [x0, y0] = g.local(r.left, r.top);
+      return [x0, y0, x0 + r.width, y0 + r.height];
+    })).map(([x0, y0, x1, y1]) => [...g.toPdf(x0, y0), ...g.toPdf(x1, y0), ...g.toPdf(x0, y1), ...g.toPdf(x1, y1)]);
+    pages.push({ page, quads });
+  }
+  const text = range.toString();
+  sel.removeAllRanges();
+  return { text, pages };
 }
 
 /** Merge rects on the same line that touch or overlap (CSS px boxes). */

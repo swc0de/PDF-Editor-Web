@@ -154,6 +154,15 @@ export function appearanceContent(spec, rect, layout = null) {
       }
       break;
     }
+    case 'redact': {
+      // A mark to review: red outline over a light red tint (text stays readable).
+      const boxes = quads.length ? quads.map((q) => [Math.min(q[0], q[4]), Math.min(q[5], q[7]), Math.max(q[2], q[6]), Math.max(q[1], q[3])]) : [rect];
+      ops.push('/GSR gs 0.85 0.05 0.15 rg');
+      for (const [bx0, by0, bx1, by1] of boxes) ops.push(`${f(bx0)} ${f(by0)} ${f(bx1 - bx0)} ${f(by1 - by0)} re f`);
+      ops.push('/GS0 gs 0.8 0 0.12 RG 1 w');
+      for (const [bx0, by0, bx1, by1] of boxes) ops.push(`${f(bx0 + 0.5)} ${f(by0 + 0.5)} ${f(bx1 - bx0 - 1)} ${f(by1 - by0 - 1)} re S`);
+      break;
+    }
     case 'note': {
       const [x0, y0] = rect;
       ops.push(`${r} ${g} ${b} rg 0.25 0.25 0.25 RG 0.6 w`,
@@ -179,6 +188,7 @@ export function makeAppearance(L, H, doc, spec, rect) {
   const gs = { Type: 'ExtGState', CA: opacity, ca: opacity };
   if (spec.type === 'highlight') gs.BM = 'Multiply';
   const resources = { ExtGState: { GS0: gs } };
+  if (spec.type === 'redact') resources.ExtGState.GSR = { Type: 'ExtGState', ca: 0.18, CA: 1 };
   let layout = null;
   if (spec.type === 'freetext') {
     layout = H.layoutFreeText(L, H, spec, rect);
@@ -225,6 +235,11 @@ export function createAnnotation(L, H, doc, pageIndex, spec) {
   }
   if (s.type === 'ink') dict.InkList = s.ink;
   if (s.type === 'freetext') delete dict.C; // set by freeTextEntries (background)
+  if (s.type === 'redact') {
+    dict.IC = [0, 0, 0]; // what the area becomes when applied: black
+    dict.OC = [0.8, 0, 0.12];
+    delete dict.CA;
+  }
   if (s.type === 'note') {
     dict.Name = 'Comment';
     dict.Open = false;
@@ -240,7 +255,7 @@ export function createAnnotation(L, H, doc, pageIndex, spec) {
 export function SUBTYPES_OF(type) {
   const map = {
     highlight: 'Highlight', underline: 'Underline', strikeout: 'StrikeOut', square: 'Square', circle: 'Circle',
-    line: 'Line', ink: 'Ink', freetext: 'FreeText', note: 'Text',
+    line: 'Line', ink: 'Ink', freetext: 'FreeText', note: 'Text', redact: 'Redact',
   };
   return map[type];
 }
@@ -259,7 +274,7 @@ export function specFromDict(L, H, doc, dict) {
     return v instanceof PDFString || v instanceof PDFHexString ? v.decodeText() : '';
   };
   const subtype = String(dict.get(N('Subtype'))).replace('/', '');
-  const types = { Highlight: 'highlight', Underline: 'underline', StrikeOut: 'strikeout', Square: 'square', Circle: 'circle', Line: 'line', Ink: 'ink', FreeText: 'freetext', Text: 'note' };
+  const types = { Highlight: 'highlight', Underline: 'underline', StrikeOut: 'strikeout', Square: 'square', Circle: 'circle', Line: 'line', Ink: 'ink', FreeText: 'freetext', Text: 'note', Redact: 'redact' };
   const type = types[subtype];
   if (!type) return null;
   const rgb = nums(dict.get(N('C'))) || [0, 0, 0];
@@ -272,7 +287,7 @@ export function specFromDict(L, H, doc, dict) {
     opacity: ca instanceof PDFNumber ? ca.asNumber() : 1,
     width: bw instanceof PDFNumber ? bw.asNumber() : 1,
   };
-  if (['highlight', 'underline', 'strikeout'].includes(type)) {
+  if (['highlight', 'underline', 'strikeout', 'redact'].includes(type)) {
     const q = nums(dict.get(N('QuadPoints'))) || [];
     spec.quads = [];
     for (let i = 0; i + 7 < q.length; i += 8) spec.quads.push(q.slice(i, i + 8));

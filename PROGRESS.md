@@ -14,7 +14,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M7 | Properties, attachments, layers | approved |
 | M8 | Comments and annotations | approved |
 | M9 | Forms and signatures | approved |
-| M10 | Protect, redact, print | in progress |
+| M10 | Protect, redact, print | awaiting approval |
 | M11 | Scan & OCR | todo |
 | M12 | Accessibility checker, polish and final audit | todo |
 
@@ -260,4 +260,33 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   fixed), `freeTextEntries` (DA/Q/DS/C(fill)/BS + `/PDFEditorStyle` JSON for exact round-trip), `normalizeFreeText`,
   `freeTextFont`; new read-only op `annotationSpec` (toolbar reads a selected box's style). Tests: new e2e "text boxes work
   like Word", unit test for wrapping/style round-trip.
+
+### M10 — Protect, redact, print (awaiting approval)
+- **Encryption outcome:** works. `@neslinesli93/qpdf-wasm@0.3.1` (qpdf 12.2.0, ISC build of Apache-2.0 qpdf) in
+  `libs.config.js` (`qpdf: main dist/qpdf.js, wasm dist/qpdf.wasm`), devDependency pinned. `core/qpdf.js`: fetch js+wasm on
+  the main thread, classic Blob worker per run; quirks of this build: no `wasmBinary` → `locateFile()` returns a Blob URL
+  created *inside* the worker (a page Blob URL isn't fetchable from the worker on file://); `print/printErr` ignored → the
+  worker captures console.log/error. `encryptPdf` (AES-256, --bits=256, granular perms), `checkPassword` (parses "Supplied
+  password is owner/user password"), `decryptPdf`. Direct `node` runs of the downloaded package were blocked by the sandbox
+  policy; verified through the app's tests instead.
+- **Model:** `DocumentModel.commitBytes(bytes, { label, readOnly })` for bytes made outside the pdf-lib worker; history
+  entries can carry `readOnly` (initial entry records 'encrypted'), restored on undo/redo in `changed()`.
+- **Ops:** `core/ops/protect-ops.js` — listRedactions (query), removeRedactions, applyRedactions (page Contents → one
+  image XObject, Resources replaced, overlapping annots/fields removed, then `collectGarbage`), sanitize ({metadata,
+  javascript, attachments, hiddenLayers, comments, dryRun}). `protect-helpers.js`: collectGarbage (reachability from
+  trailer Root/Info), streamBytes, latin1/fromLatin1, stripOptionalContent (content-stream tokenizer; strings, hex,
+  comments, inline images), hiddenOcgs, ocIsHidden (OCG/OCMD), redactRects, redactionMarks. Annot helpers: `redact` spec
+  type (Redact subtype, IC black, OC red, GSR tint). pdf-lib typed `lookup(key, Type)` throws when missing → use
+  `lookupMaybe` (also fixed in form-helpers). Replaced pages keep empty Font/ExtGState dicts (pdf-lib normalizes them).
+- **UI:** `ui/protect/redactor.js` (`app.redactor`, toolbar "Redaction tools": Mark area / Mark text / search + Aa + ab +
+  Mark all matches / count / Remove marks / Apply redactions…; `findMatchQuads` uses canvas measureText ratios + padding;
+  `renderRedactedPage` 200 dpi, rotation 0, AnnotationMode.DISABLE, black boxes, JPEG 0.9), `sanitize-dialog.js` (dry-run
+  counts), `password-dialog.js` (protect copy / remove), `ui/print.js` (`app.printer`, `printFrame` replaceable for tests;
+  respects pdf.js permissions). Annotator: `selectionQuads()` shared; doesn't auto-activate while redacting. Modes are
+  mutually exclusive. Fixture `sanitize.pdf` (metadata+XMP, 4 JS items, URI link, attachment, hidden layer, note).
+- **Tools ready:** redact, sanitize, protect-password, print; commands file.print (⌘P, File menu), protect.*,
+  redact.escape. Read-only message now points to removing protection.
+- **Tests:** `protect.spec.mjs` (5), `tests/unit/protect-ops.spec.mjs` (4) — redacted text absent from every decoded
+  stream of the saved file; sanitize removes exactly the selected items. Smoke/palette "Coming soon" example is now the
+  accessibility checker.
 

@@ -1,0 +1,39 @@
+/* M10 — redaction, sanitize, password protection, print. */
+
+/* Redaction mode */
+.viewer-host.redacting .annot-box[data-subtype="Redact"] { pointer-events: auto; cursor: pointer; }
+.viewer-host.redact-area .page { cursor: crosshair; }
+.viewer-host.redact-area :is(.textLayer, .linkLayer, .formLayer, .pdf-link, .form-field) { pointer-events: none !important; }
+.viewer-host.redacting .annot-box:not([data-subtype="Redact"]) { pointer-events: none !important; }
+.redact-draft {
+  position: absolute;
+  z-index: 5;
+  border: 1.5px solid #cc0020;
+  background: rgba(217, 13, 38, .18);
+  pointer-events: none;
+}
+.redact-toolbar .redact-search { gap: 4px; }
+.redact-query { width: 180px; height: 28px; }
+.redact-toolbar .find-toggle { height: 28px; }
+.redact-count { color: var(--text-muted); font-size: var(--text-sm); white-space: nowrap; }
+.redact-toolbar[data-busy="true"] .redact-search { opacity: .6; }
+.redact-progress { margin: 0; }
+.dialog progress { width: 100%; accent-color: var(--accent); }
+
+/* Sanitize */
+.sanitize-row { align-items: flex-start; }
+.sanitize-row input { margin-top: 2px; }
+.sanitize-text { display: flex; flex-direction: column; gap: 1px; }
+.sanitize-label { font-weight: 500; }
+.sanitize-help { font-size: var(--text-sm); }
+.sanitize-row:has(input:disabled) { cursor: default; opacity: .65; }
+
+/* Password protection */
+.protect-group { display: flex; flex-direction: column; gap: var(--space-2); padding-left: 24px; }
+.protect-group[hidden] { display: none; }
+.protect-perms { display: grid; grid-template-columns: 1fr 1fr; gap: 6px var(--space-3); margin: 0; padding: 0; border: 0; }
+.protect-perms legend { padding: 0; margin-bottom: var(--space-1); font-weight: 500; }
+
+/* Print */
+.print-frame { position: fixed; right: 0; bottom: 0; width: 0; height: 0; border: 0; }
+.print-dialog .input[name="range"] { width: 140px; height: var(--control-h-sm); }

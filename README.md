@@ -88,6 +88,7 @@ mirrored in `package.json` devDependencies for the tests).
 | [pdf-lib](https://pdf-lib.js.org/) | 1.17.1 | all modification and saving | MIT |
 | [fflate](https://github.com/101arrowz/fflate) | 0.8.3 | zipping split outputs | MIT |
 | [Tesseract.js](https://tesseract.projectnaptha.com/) | 7.0.0 | OCR (loaded only when OCR opens) | Apache-2.0 |
+| [qpdf](https://qpdf.sourceforge.io/) 12.2.0 as WebAssembly ([`@neslinesli93/qpdf-wasm`](https://github.com/neslinesli93/qpdf-wasm)) | 0.3.1 | password protection: AES-256 encryption, permissions, removing protection (loaded only when used) | Apache-2.0 (qpdf), ISC (build) |
 
 ## Project layout
 
@@ -156,7 +157,8 @@ dist/pdf-editor.html   the deliverable
   dirty documents are written to IndexedDB; the next launch offers *Recover* /
   *Discard* on the home screen. Closing a dirty tab asks Save / Don't save /
   Cancel; leaving the page with unsaved work triggers the browser's prompt.
-- Password-protected PDFs open read-only (pdf-lib can't edit encrypted files).
+- Password-protected PDFs open read-only (pdf-lib can't edit encrypted files)
+  until their protection is removed (Protect → Password protection, M10).
 
 ### Organize pages (`src/ui/organize/`, `src/core/ops/page-ops.js`)
 
@@ -297,6 +299,48 @@ their target.
   miss separate widget annotations and fields without appearances, so the
   worker uses its own versions.
 
+### Protect: redaction, sanitize, passwords; print (`src/ui/protect/`, `src/core/ops/protect-*.js`, `src/core/qpdf.js`, `src/ui/print.js`)
+
+- **Redact.** Marks are standard `Redact` annotations, drawn as red-outlined
+  areas: draw an area, select text, or type a search and **Mark all
+  matches** (one mark per match). Marks are reviewed on the page and in the
+  Comments panel ("Redaction mark") and removed like any annotation, or all
+  at once. **Apply redactions…** warns first (pages, what's lost), then
+  renders each marked page at **200 dpi** with black boxes burned into the
+  pixels and replaces that page's content with the image (the page object
+  stays, so links and bookmarks to it still work). Annotations and form
+  fields over a redacted area go too, and a garbage-collection pass deletes
+  every object nothing refers to any more, so the old content streams (and
+  fonts only they used) aren't left in the saved file. One undo step.
+  Search-based marks estimate where characters start and end from browser
+  font metrics and are padded by half a character; review them before
+  applying.
+- **Sanitize** scans first (a dry run of the same op) and lists what it found
+  per category: metadata (Info, XMP, application data), JavaScript and
+  actions that run code, launch files or send data (ordinary web links stay),
+  attachments, hidden layers (content in optional-content groups that are off
+  by default is cut out of the content streams, not just hidden), and
+  comments (not form fields, links or visual signatures). One undo step;
+  unreferenced objects are deleted.
+- **Password protection — the encryption outcome.** A maintained WebAssembly
+  build of **qpdf 12.2.0** (`@neslinesli93/qpdf-wasm` 0.3.1, on jsDelivr)
+  works: it's downloaded only when needed and runs in a classic Blob worker
+  (its wasm is handed to the worker as bytes, since this build has no
+  `wasmBinary` option and a page Blob URL isn't readable from a worker under
+  `file://`). So this is real encryption, not a fake:
+  - **Protect** saves a protected *copy* (`name-protected.pdf`) with
+    **AES-256** (R6): an open password, and/or an owner password with
+    permissions (printing, copying, editing, commenting, forms, page
+    assembly). The open document stays editable.
+  - **Remove protection** on an encrypted document needs the **owner**
+    password (qpdf reports which password was given); the decrypted file
+    replaces the document as an undo step and becomes editable. Undo makes it
+    protected (read-only) again.
+- **Print (⌘P):** all / current / a page range, at 150 or 300 dpi. Pages are
+  rendered with pdf.js' print intent (annotations meant for print, form
+  values) into images in a hidden iframe, each sheet at its page's own size,
+  with progress and Cancel. PDFs that don't allow printing say so.
+
 ### Find and navigation
 
 - `view/text-index.js` — indexes each page's text in the background (yielding
@@ -384,8 +428,15 @@ it's skipped and so are its tests.
   as separate marks, and words hyphenated across lines aren't normalized, so
   e.g. "find" won't match "ﬁnd".
 
-- Editing password-protected PDFs isn't supported (pdf-lib can't decrypt);
-  they open read-only.
+- Password-protected PDFs open read-only; remove their protection (with the
+  owner password) to edit them.
+- Redaction rasterizes the affected pages (their text becomes an image, 200
+  dpi). Text that also appears outside the page content — bookmarks, the
+  document title, form field values elsewhere — isn't redacted. Search
+  marks are estimates (padded); review them.
+- Printing goes through the browser's print dialog; page sizes come from
+  CSS named pages (Chromium). Very large documents at 300 dpi take a while
+  and use a lot of memory.
 - Writing back to the original file needs the File System Access API
   (Chrome/Edge). Elsewhere, Save downloads a copy.
 

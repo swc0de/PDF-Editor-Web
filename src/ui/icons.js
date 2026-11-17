@@ -78,6 +78,7 @@ const PATHS = {
   arrowUpRight: '<path d="M7 17 17 7"/><path d="M8 7h9v9"/>',
   reply: '<path d="m9 17-5-5 5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
   checkCircle: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  textCursor: '<path d="M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1"/><path d="M7 22h1a4 4 0 0 0 4-4v-1"/><path d="M7 2h1a4 4 0 0 1 4 4v1"/>',
   bold: '<path d="M6 12h9a4 4 0 0 1 0 8H6z"/><path d="M6 4h7a4 4 0 0 1 0 8H6z"/>',
   italic: '<path d="M19 4h-9"/><path d="M14 20H5"/><path d="M15 4 9 20"/>',
   alignLeft: '<path d="M21 6H3"/><path d="M15 12H3"/><path d="M17 18H3"/>',

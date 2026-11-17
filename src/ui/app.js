@@ -35,6 +35,9 @@ import { registerAnnotateCommands } from '../tools/annotate.js';
 import { Forms } from './forms/forms.js';
 import { FormEditor } from './forms/form-editor.js';
 import { registerFormCommands } from '../tools/forms.js';
+import { Redactor } from './protect/redactor.js';
+import { Printer } from './print.js';
+import { registerProtectCommands } from '../tools/protect.js';
 import { runTool, getTool, listTools } from '../tools/registry.js';
 import { getSetting, getArrangement, saveArrangement, resetArrangement, onSettingsChange } from '../core/settings.js';
 import { contentId, addRecent, setRecentThumbnail, getRecentBytes, removeRecent, clearRecents } from '../core/recents.js';
@@ -116,10 +119,13 @@ export class App extends EventTarget {
     this.annotator = new Annotator(this);
     this.forms = new Forms(this);
     this.formEditor = new FormEditor(this);
+    this.redactor = new Redactor(this);
+    this.printer = new Printer(this);
 
     registerAppCommands(this);
     registerAnnotateCommands(this);
     registerFormCommands(this);
+    registerProtectCommands(this);
     this.menubar = createMenubar(buildMenus(this), { label: t('menu.label') });
     this.shell.menubarSlot.append(this.menubar.el);
 

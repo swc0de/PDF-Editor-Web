@@ -55,6 +55,7 @@ export class FormEditor extends EventTarget {
     if (tab.model.readOnly) return toast(t(`edit.readOnly.${tab.model.readOnly}`), { kind: 'error' });
     this.app.closeOrganizer?.();
     this.app.annotator?.deactivate();
+    this.app.redactor?.deactivate();
     this.app.forms?.cancelPlacing();
     this.tool = tool;
     if (tool !== 'select') this.deselect();

@@ -559,6 +559,52 @@ async function encrypted() {
 }
 
 // ---------------------------------------------------------------------- run
+// ------------------------------------------------------------ sanitize.pdf
+// Something in every category Sanitize removes: metadata (Info + XMP),
+// JavaScript (document-level, OpenAction, page AA, a JavaScript link — plus
+// an ordinary web link that must survive), an attachment, a hidden layer
+// and a comment.
+async function sanitizeFixture() {
+  const doc = await newDoc('Sanitize sample');
+  doc.setAuthor('Mallory Example');
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const page = doc.addPage(SIZES.letter);
+  doc.addPage(SIZES.letter);
+  heading(page, bold, 'Sanitize me');
+  const ctx = doc.context;
+  const js = (code) => ctx.obj({ Type: 'Action', S: 'JavaScript', JS: PDFHexString.fromText(code) });
+  doc.catalog.set(name('OpenAction'), js('app.alert("opened")'));
+  doc.catalog.set(name('Names'), ctx.obj({ JavaScript: { Names: [PDFHexString.fromText('init'), ctx.register(js('var x = 1;'))] } }));
+  doc.catalog.set(name('Metadata'), ctx.register(ctx.stream('<?xpacket begin=""?><x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:creator>Mallory Example</dc:creator></rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="w"?>', { Type: 'Metadata', Subtype: 'XML' })));
+  page.node.set(name('AA'), ctx.obj({ O: js('console.println("page open")') }));
+  page.drawText('Run script', { x: 56, y: 640, size: 12, font });
+  page.drawText('Visit example.com', { x: 300, y: 640, size: 12, font });
+  const link = (rect, action) => ctx.register(ctx.obj({ Type: 'Annot', Subtype: 'Link', Rect: rect, Border: [0, 0, 0], A: action, P: page.ref }));
+  page.node.addAnnot(link([56, 635, 130, 655], js('app.launchURL("https://example.com")')));
+  page.node.addAnnot(link([300, 635, 410, 655], ctx.obj({ S: 'URI', URI: str('https://example.com/') })));
+  page.node.addAnnot(ctx.register(ctx.obj({
+    Type: 'Annot', Subtype: 'Text', Rect: [480, 700, 500, 720], F: 4, P: page.ref, Contents: PDFHexString.fromText('Remove me'),
+    T: PDFHexString.fromText('Mallory'), C: [1, 0.8, 0], Name: 'Comment',
+  })));
+  await doc.attach(new TextEncoder().encode('secret notes\n'), 'secret.txt', { mimeType: 'text/plain', creationDate: FIXED_DATE, modificationDate: FIXED_DATE });
+  // A visible and a hidden layer.
+  const visible = ctx.register(ctx.obj({ Type: 'OCG', Name: PDFHexString.fromText('Shown') }));
+  const hidden = ctx.register(ctx.obj({ Type: 'OCG', Name: PDFHexString.fromText('Draft notes') }));
+  doc.catalog.set(name('OCProperties'), ctx.obj({ OCGs: [visible, hidden], D: { Order: [visible, hidden], ON: [visible], OFF: [hidden] } }));
+  page.node.Resources().set(name('Properties'), ctx.obj({ L1: visible, L2: hidden }));
+  page.pushOperators(PDFOperator.of('BDC', [name('OC'), name('L1')]));
+  page.drawText('SHOWN LAYER TEXT', { x: 56, y: 500, size: 16, font: bold });
+  page.pushOperators(PDFOperator.of('EMC'));
+  page.pushOperators(PDFOperator.of('BDC', [name('OC'), name('L2')]));
+  page.drawText('HIDDEN DRAFT TEXT', { x: 56, y: 460, size: 16, font: bold });
+  page.pushOperators(PDFOperator.of('EMC'));
+  await save(doc, 'sanitize.pdf', {
+    javascript: 4, attachments: ['secret.txt'], layers: [{ name: 'Shown', visible: true }, { name: 'Draft notes', visible: false }],
+    hiddenText: 'HIDDEN DRAFT TEXT', shownText: 'SHOWN LAYER TEXT',
+  });
+}
+
 await mkdir(DIR, { recursive: true });
 console.log('Generating fixtures in tests/fixtures/');
 await multipage();
@@ -573,5 +619,6 @@ await corrupted();
 await encrypted();
 await large();
 await fonts();
+await sanitizeFixture();
 await writeFile(join(DIR, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 console.log(`✓ ${Object.keys(manifest).length} fixtures, manifest.json written`);

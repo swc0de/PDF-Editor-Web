@@ -267,8 +267,8 @@ test.describe('command palette', () => {
     await expect(options.first()).toContainText('Fit page');
 
     // Tools are listed, unbuilt ones marked.
-    await input.fill('redact');
-    await expect(options.first()).toContainText('Redact');
+    await input.fill('accessibility checker');
+    await expect(options.first()).toContainText('Accessibility checker');
     await expect(options.first()).toContainText('Coming soon');
 
     // Arrow keys move the active option.

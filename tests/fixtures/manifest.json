@@ -240,5 +240,24 @@
         "embedded": false
       }
     ]
+  },
+  "sanitize.pdf": {
+    "pageCount": 2,
+    "javascript": 4,
+    "attachments": [
+      "secret.txt"
+    ],
+    "layers": [
+      {
+        "name": "Shown",
+        "visible": true
+      },
+      {
+        "name": "Draft notes",
+        "visible": false
+      }
+    ],
+    "hiddenText": "HIDDEN DRAFT TEXT",
+    "shownText": "SHOWN LAYER TEXT"
   }
 }

@@ -93,7 +93,7 @@ test.describe('document properties', () => {
     await expect(p.locator('.props-perms li.denied')).toContainText(['Printing', 'High-quality printing', 'Changing the document']);
     await expect(p.locator('.props-perms li.allowed')).toContainText(['Copying text and images', 'Content for accessibility']);
     await expect(p.getByLabel('Title')).toBeDisabled();
-    await expect(p.locator('.props-note')).toContainText('can’t be edited yet');
+    await expect(p.locator('.props-note')).toContainText('can’t be edited until you remove the protection');
     await expect(p.locator('.props-fonts')).toContainText('aren’t available for protected PDFs');
   });
 });

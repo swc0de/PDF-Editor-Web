@@ -5,10 +5,10 @@
 // give toBlob() a short head start and otherwise encode synchronously with
 // toDataURL() — a small thumbnail costs a few milliseconds.
 
-export async function canvasToBlob(canvas, type = 'image/png', { timeout = 800 } = {}) {
+export async function canvasToBlob(canvas, type = 'image/png', { timeout = 800, quality } = {}) {
   const viaToBlob = new Promise((resolve) => {
     try {
-      canvas.toBlob((b) => resolve(b), type);
+      canvas.toBlob((b) => resolve(b), type, quality);
     } catch {
       resolve(null);
     }
@@ -16,7 +16,7 @@ export async function canvasToBlob(canvas, type = 'image/png', { timeout = 800 }
   const timer = new Promise((resolve) => setTimeout(() => resolve('timeout'), timeout));
   const result = await Promise.race([viaToBlob, timer]);
   if (result && result !== 'timeout') return result;
-  const dataUrl = canvas.toDataURL(type);
+  const dataUrl = canvas.toDataURL(type, quality);
   const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
   const bin = atob(base64);
   const bytes = new Uint8Array(bin.length);

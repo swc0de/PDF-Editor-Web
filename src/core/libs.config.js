@@ -44,6 +44,17 @@ export const LIBS = {
       umd: 'umd/index.js',
     },
   },
+  qpdf: {
+    // qpdf 12.2 compiled to WebAssembly (encryption: AES-256 passwords and permissions).
+    pkg: '@neslinesli93/qpdf-wasm',
+    version: '0.3.1',
+    license: 'Apache-2.0 (qpdf) · ISC (WASM build)',
+    homepage: 'https://github.com/neslinesli93/qpdf-wasm',
+    files: {
+      main: 'dist/qpdf.js',
+      wasm: 'dist/qpdf.wasm',
+    },
+  },
   tesseract: {
     pkg: 'tesseract.js',
     version: '7.0.0',
