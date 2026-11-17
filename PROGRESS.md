@@ -7,8 +7,8 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M0 | Scaffold, build and test harness | approved |
 | M1 | Core viewer | approved |
 | M2 | App shell, tabs, home screen | approved |
-| M3 | Find and navigation | awaiting approval |
-| M4 | Document model, undo/redo, save, autosave | todo |
+| M3 | Find and navigation | approved |
+| M4 | Document model, undo/redo, save, autosave | in progress |
 | M5 | Organize pages | todo |
 | M6 | Combine and split | todo |
 | M7 | Properties, attachments, layers | todo |
@@ -99,7 +99,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   (reload, open, remove, clear), menu keyboard nav, About/shortcuts. Total suite: 51.
 - **Known limits:** Chrome reserves Ctrl+W / Ctrl+Shift+T / Ctrl+PageUp/Down (documented in README).
 
-### M3 — Find and navigation (awaiting approval)
+### M3 — Find and navigation (approved)
 - **Find:** `view/text-index.js` (per-page `{text, items:[{start,len}]}`, item k ↔ pdf.js
   `TextLayer.textDivs[k]`; EOL → one space) + `view/find-controller.js` (per tab, lazily `tab.find`)
   + `ui/find-bar.js` (one bar for the app, rebinds on tab switch). Highlight spans need class
