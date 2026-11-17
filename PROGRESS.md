@@ -13,8 +13,8 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M6 | Combine and split | approved |
 | M7 | Properties, attachments, layers | approved |
 | M8 | Comments and annotations | approved |
-| M9 | Forms and signatures | awaiting approval |
-| M10 | Protect, redact, print | todo |
+| M9 | Forms and signatures | approved |
+| M10 | Protect, redact, print | in progress |
 | M11 | Scan & OCR | todo |
 | M12 | Accessibility checker, polish and final audit | todo |
 
@@ -222,7 +222,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 - **Known limitations:** no on-page reply pop-ups; Helvetica/WinAnsi in text-box appearances; no polygon/squiggly/stamp
   creation; toolbar wraps to two rows when the viewport is narrow (side + tools panels open).
 
-### M9 — Forms and signatures (awaiting approval)
+### M9 — Forms and signatures (approved)
 - **View:** `view/form-layer.js` — HTML controls over widgets (pdf.js ENABLE_FORMS: text/choice widgets draw only their box;
   checkbox/radio/push-button appearances come from `render({ annotationCanvasMap })` — tiles get a throwaway map). The layer
   survives `PageView.reset()` (`release({ keepForm: true })`) and updates values in place when the same widget ids come back
