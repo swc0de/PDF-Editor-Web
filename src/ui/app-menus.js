@@ -36,7 +36,14 @@ export function buildMenus(app) {
     {
       id: 'edit',
       label: t('menu.edit'),
-      items: () => [item('edit.copy'), item('edit.selectPageText')],
+      items: () => [
+        item('edit.copy'),
+        item('edit.selectPageText'),
+        'separator',
+        item('find.open'),
+        item('find.next'),
+        item('find.prev'),
+      ],
     },
     {
       id: 'view',
@@ -55,6 +62,9 @@ export function buildMenus(app) {
         'separator',
         item('view.rotateLeft'),
         item('view.rotateRight'),
+        'separator',
+        item('go.back'),
+        item('go.forward'),
         'separator',
         item('view.toggleToolsPanel', { role: 'menuitemcheckbox', icon: false }),
         item('view.toggleSidePanel', { role: 'menuitemcheckbox', icon: false }),

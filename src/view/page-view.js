@@ -23,10 +23,12 @@ export class PageView {
    * @param {object} deps.pdfjs           the pdf.js module
    * @param {(i:number) => Promise<object>} deps.getPage
    */
-  constructor(index, { pdfjs, getPage }) {
+  constructor(index, { pdfjs, getPage, onTextLayer }) {
     this.index = index;
     this.pdfjs = pdfjs;
     this.getPage = getPage;
+    this.onTextLayer = onTextLayer;
+    this.textLayerObj = null; // the pdf.js TextLayer (textDivs ↔ text items)
     this.proxy = null;
     this.error = null;
     this.generation = 0;
@@ -279,8 +281,10 @@ export class PageView {
     });
     this.textLayer?.remove();
     this.textLayer = div;
+    this.textLayerObj = layer;
     this.textRotation = params.rotation;
     this.el.append(div);
+    this.onTextLayer?.(this);
   }
 
   async renderLinks(params, stale) {
@@ -340,6 +344,7 @@ export class PageView {
     this.clearTiles();
     this.textLayer?.remove();
     this.textLayer = null;
+    this.textLayerObj = null;
     this.textRotation = null;
     this.linkLayer?.remove();
     this.linkLayer = null;

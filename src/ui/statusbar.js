@@ -46,7 +46,6 @@ export function createStatusBar(viewer) {
   // ---- page navigation
   const pageInput = h('input.input.page-input', {
     type: 'text',
-    inputmode: 'numeric',
     'aria-label': t('status.pageNumber'),
     autocomplete: 'off',
   });
@@ -56,9 +55,9 @@ export function createStatusBar(viewer) {
   pageInput.setAttribute('aria-describedby', 'page-total');
 
   const commitPage = () => {
-    const n = parseInt(pageInput.value, 10);
-    if (Number.isFinite(n) && n >= 1 && n <= viewer.numPages) {
-      viewer.goToPage(n);
+    const n = viewer.resolvePageInput(pageInput.value);
+    if (n) {
+      if (n !== viewer.currentPage) viewer.navigate(n);
       viewer.focus();
     }
     sync({ force: true });
@@ -166,9 +165,12 @@ export function createStatusBar(viewer) {
 
   function sync({ force = false } = {}) {
     const s = viewer.state;
-    if (force || document.activeElement !== pageInput) pageInput.value = String(s.page);
-    pageInput.style.width = `${Math.max(2, String(s.numPages).length) + 2}ch`;
-    pageTotal.textContent = t('status.ofPages', { n: s.numPages });
+    if (force || document.activeElement !== pageInput) pageInput.value = s.label;
+    const longest = viewer.labels ? Math.max(...viewer.labels.map((l) => l.length)) : String(s.numPages).length;
+    pageInput.style.width = `${Math.max(2, longest) + 2}ch`;
+    pageTotal.textContent = viewer.labels
+      ? t('status.ofPagesLabeled', { n: s.page, total: s.numPages })
+      : t('status.ofPages', { n: s.numPages });
     prevBtn.disabled = s.page <= 1;
     nextBtn.disabled = s.page >= s.numPages;
     if (force || document.activeElement !== zoomInput) zoomInput.value = zoomLabel(s.zoom);

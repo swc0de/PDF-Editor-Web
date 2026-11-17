@@ -38,6 +38,11 @@ export function registerAppCommands(app) {
     },
   });
 
+  // Find
+  def({ id: 'find.open', label: 'command.find.open', icon: 'search', shortcut: 'Mod+F', enabled: hasDoc, run: () => app.openFind() });
+  def({ id: 'find.next', label: 'command.find.next', icon: 'chevronDown', shortcut: ['Mod+G', 'F3'], enabled: hasDoc, run: () => { if (!app.findBar.isOpen) app.openFind(); else app.findBar.next(); } });
+  def({ id: 'find.prev', label: 'command.find.prev', icon: 'chevronUp', shortcut: ['Mod+Shift+G', 'Shift+F3'], enabled: hasDoc, run: () => { if (!app.findBar.isOpen) app.openFind(); else app.findBar.prev(); } });
+
   // View
   def({ id: 'view.zoomIn', label: 'command.view.zoomIn', icon: 'plus', shortcut: 'Mod+=', enabled: hasDoc, run: () => v().zoomIn() });
   def({ id: 'view.zoomOut', label: 'command.view.zoomOut', icon: 'minus', shortcut: 'Mod+-', enabled: hasDoc, run: () => v().zoomOut() });
@@ -56,6 +61,7 @@ export function registerAppCommands(app) {
   def({ id: 'view.fullscreen', label: 'command.view.fullscreen', icon: 'maximize', shortcut: 'F11', run: () => app.toggleFullscreen() });
   def({ id: 'view.readMode', label: 'command.view.readMode', icon: 'bookOpen', enabled: hasDoc, run: () => app.toggleReadMode() });
   def({ id: 'view.exitReadMode', label: 'readMode.exit', shortcut: 'Escape', hidden: true, enabled: () => app.readMode, run: () => app.exitReadMode() });
+  def({ id: 'find.close', label: 'find.close', shortcut: 'Escape', hidden: true, enabled: () => app.findBar.isOpen, run: () => app.closeFind() });
   def({ id: 'view.toggleTheme', label: 'command.view.toggleTheme', icon: 'moon', run: () => toggleTheme() });
   for (const p of PANELS) {
     def({ id: `panel.${p.id}`, label: `command.panel.${p.id}`, icon: p.icon, run: () => app.showPanel(p.id) });
@@ -66,6 +72,8 @@ export function registerAppCommands(app) {
   def({ id: 'go.lastPage', label: 'command.go.lastPage', enabled: hasDoc, run: () => v().goToPage(v().numPages) });
   def({ id: 'go.nextPage', label: 'status.nextPage', icon: 'chevronRight', enabled: hasDoc, run: () => v().next() });
   def({ id: 'go.prevPage', label: 'status.prevPage', icon: 'chevronLeft', enabled: hasDoc, run: () => v().prev() });
+  def({ id: 'go.back', label: 'command.go.back', icon: 'arrowLeft', shortcut: 'Alt+ArrowLeft', enabled: () => !!v()?.history.canBack, run: () => v().back() });
+  def({ id: 'go.forward', label: 'command.go.forward', icon: 'arrowRight', shortcut: 'Alt+ArrowRight', enabled: () => !!v()?.history.canForward, run: () => v().forward() });
 
   // App / help
   def({ id: 'app.palette', label: 'command.app.palette', icon: 'search', shortcut: 'Mod+K', hidden: true, run: () => app.openPalette() });

@@ -3,6 +3,7 @@
 // and a small render scheduler that only draws what's visible (± a margin).
 import { computeLayout, visibleRows, pageAtPoint, rotatedSize, CSS_UNITS } from './layout.js';
 import { PageView } from './page-view.js';
+import { NavHistory } from './history.js';
 import { h } from '../ui/dom.js';
 import { t } from '../i18n/index.js';
 
@@ -55,6 +56,8 @@ export class Viewer extends EventTarget {
     this.holdTimer = 0;
     this.pagePromises = new Map();
     this.sizes = new Array(this.numPages).fill(DEFAULT_SIZE);
+    this.labels = null;
+    this.history = new NavHistory();
 
     this.content = h('div.viewer-content');
     this.container = h(
@@ -66,7 +69,11 @@ export class Viewer extends EventTarget {
 
     this.views = Array.from(
       { length: this.numPages },
-      (_, i) => new PageView(i, { pdfjs, getPage: (idx) => this.getPage(idx) }),
+      (_, i) => new PageView(i, {
+        pdfjs,
+        getPage: (idx) => this.getPage(idx),
+        onTextLayer: (view) => this.emit('textlayer', { index: view.index }),
+      }),
     );
     const frag = document.createDocumentFragment();
     for (const v of this.views) frag.append(v.el);
@@ -92,6 +99,13 @@ export class Viewer extends EventTarget {
       this.sizes.fill(sizeOf(first));
     } catch {
       /* page 1 is broken: keep the default size, it shows an error tile */
+    }
+    try {
+      const labels = await this.doc.getPageLabels();
+      // Labels that are just 1..n add nothing; ignore them.
+      if (labels && labels.some((l, i) => l !== String(i + 1))) this.labels = labels;
+    } catch {
+      this.labels = null;
     }
     if (this.destroyed) return;
     this.zoom = this.resolveZoom(this.zoomMode);
@@ -347,6 +361,67 @@ export class Viewer extends EventTarget {
     this.update();
   }
 
+  /** The page label for a 0-based index ("iv", "A-1"…), or its number. */
+  pageLabel(index) {
+    return this.labels?.[index] || String(index + 1);
+  }
+
+  /**
+   * Resolve what the user typed into the page box: a page label first
+   * (case-insensitive), otherwise a page number. Returns a 1-based page or null.
+   */
+  resolvePageInput(text) {
+    const value = String(text).trim();
+    if (!value) return null;
+    if (this.labels) {
+      const i = this.labels.findIndex((l) => l.toLowerCase() === value.toLowerCase());
+      if (i >= 0) return i + 1;
+    }
+    if (/^\d+$/.test(value)) {
+      const n = parseInt(value, 10);
+      if (n >= 1 && n <= this.numPages) return n;
+    }
+    return null;
+  }
+
+  // ----------------------------------------------------------- history
+
+  position() {
+    return { page: this.currentPage, anchor: this.captureAnchor(0, 0) };
+  }
+
+  /** Jump to a page, remembering where we were (for Alt+←). */
+  navigate(n, opts) {
+    this.history.push(this.position());
+    this.goToPage(n, opts);
+    this.emit('historychange');
+  }
+
+  restorePosition(pos) {
+    if (this.mode === 'single') this.goToPage(pos.page);
+    if (pos.anchor && this.layout.items[pos.anchor.idx]) {
+      this.restoreAnchor(pos.anchor);
+      this.setCurrent(pos.anchor.idx);
+      this.update();
+    } else {
+      this.goToPage(pos.page);
+    }
+  }
+
+  back() {
+    const pos = this.history.back(this.position());
+    if (pos) this.restorePosition(pos);
+    this.emit('historychange');
+    return !!pos;
+  }
+
+  forward() {
+    const pos = this.history.forward(this.position());
+    if (pos) this.restorePosition(pos);
+    this.emit('historychange');
+    return !!pos;
+  }
+
   next() {
     const row = this.rowPages(this.current);
     this.goToPage(row.at(-1) + 2);
@@ -386,7 +461,7 @@ export class Viewer extends EventTarget {
       }
     }
     this.emit('navigate', { from: this.currentPage, to: index + 1 });
-    this.goToPage(index + 1, { fy, fx });
+    this.navigate(index + 1, { fy, fx });
     return true;
   }
 
@@ -535,6 +610,7 @@ export class Viewer extends EventTarget {
   get state() {
     return {
       page: this.currentPage,
+      label: this.pageLabel(this.current),
       numPages: this.numPages,
       zoom: this.zoom,
       zoomMode: this.zoomMode,

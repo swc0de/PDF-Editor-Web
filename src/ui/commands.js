@@ -56,6 +56,8 @@ export function handleShortcut(event) {
     if (!hit) continue;
     // In text fields only modifier/function-key shortcuts apply.
     if (editable && !/Mod|Ctrl|Alt|(^|\+)F\d+$/.test(hit)) continue;
+    // Arrow-key shortcuts (e.g. Alt+← for Back) would break caret movement.
+    if (editable && /Arrow/.test(hit)) continue;
     if (!c.enabled()) continue;
     event.preventDefault();
     c.run();

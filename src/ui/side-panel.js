@@ -8,7 +8,7 @@ import { PANELS, getPanel } from './panels.js';
 import { createSplitter } from './splitter.js';
 import { SIDE_WIDTH } from '../core/settings.js';
 
-export function createSidePanel({ getTab, getState, setState }) {
+export function createSidePanel({ getTab, getState, setState, app }) {
   const title = h('h2.side-panel-title', { id: 'side-panel-title' });
   const closeBtn = h('button.btn.icon-btn', {
     type: 'button',
@@ -70,7 +70,7 @@ export function createSidePanel({ getTab, getState, setState }) {
     body.replaceChildren();
     rendered = { panel: def.id, tab };
     if (tab && def.render) {
-      cleanup = def.render(body, tab) ?? null;
+      cleanup = def.render(body, tab, app) ?? null;
     } else {
       body.append(emptyState(def, !!tab));
     }

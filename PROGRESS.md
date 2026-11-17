@@ -7,7 +7,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M0 | Scaffold, build and test harness | approved |
 | M1 | Core viewer | approved |
 | M2 | App shell, tabs, home screen | approved |
-| M3 | Find and navigation | in progress |
+| M3 | Find and navigation | awaiting approval |
 | M4 | Document model, undo/redo, save, autosave | todo |
 | M5 | Organize pages | todo |
 | M6 | Combine and split | todo |
@@ -98,3 +98,21 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   persistence, reset), palette (fuzzy/id/arrows/Enter/recent), preferences persistence, recents
   (reload, open, remove, clear), menu keyboard nav, About/shortcuts. Total suite: 51.
 - **Known limits:** Chrome reserves Ctrl+W / Ctrl+Shift+T / Ctrl+PageUp/Down (documented in README).
+
+### M3 — Find and navigation (awaiting approval)
+- **Find:** `view/text-index.js` (per-page `{text, items:[{start,len}]}`, item k ↔ pdf.js
+  `TextLayer.textDivs[k]`; EOL → one space) + `view/find-controller.js` (per tab, lazily `tab.find`)
+  + `ui/find-bar.js` (one bar for the app, rebinds on tab switch). Highlight spans need class
+  `appended` (pdf.js CSS makes text-layer spans absolute otherwise). `navigation.css` must load after
+  `pdfjs-layers.css`. Viewer emits `textlayer` {index} when a page's text layer is ready.
+- **Commands:** find.open (Mod+F), find.next (Mod+G, F3), find.prev (Mod+Shift+G, Shift+F3),
+  find.close (Esc, after view.exitReadMode), go.back/forward (Alt+←/→; arrow shortcuts never fire in text fields).
+- **Viewer:** `labels` (ignored when they're just 1..n), `pageLabel(i)`, `resolvePageInput(text)`
+  (label first, then number), `navigate(n)` (pushes history), `back()/forward()`, `history` (NavHistory).
+  `goToDest` pushes history.
+- **Panels:** `ui/panels/pages-panel.js` (thumbs rendered once at 180 px × min(dpr,2), PNG blob URLs
+  cached on `tab.thumbs`, cleared on rotation; slider pref `pdfeditor.thumbSize`), `ui/panels/bookmarks-panel.js`
+  (`tab.outlinePromise`; PDF count>0 = open). Panels' render gets `(container, tab, app)`. DocTab fires `destroy`.
+- **Tools ready:** read-mode, find, bookmarks, page-thumbnails.
+- **Tests:** `navigation.spec.mjs` (13). Suite total 64.
+- **Limitations:** no ligature/diacritic/hyphen normalization in search (README).

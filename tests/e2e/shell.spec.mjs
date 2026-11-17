@@ -141,14 +141,15 @@ test.describe('panels', () => {
     await expect(side).toContainText('No document open');
 
     await openFixture(page, 'multipage.pdf');
-    await expect(side).toContainText('Coming soon');
+    await expect(side.locator('.thumb').first()).toBeVisible(); // Pages panel is built (M3)
 
-    for (const [name, title] of [['Bookmarks', 'Bookmarks'], ['Layers', 'Layers'], ['Fields', 'Fields'], ['Comments', 'Comments'], ['Attachments', 'Attachments'], ['Document Properties', 'Document Properties']]) {
+    for (const [name, title] of [['Layers', 'Layers'], ['Fields', 'Fields'], ['Comments', 'Comments'], ['Attachments', 'Attachments'], ['Document Properties', 'Document Properties']]) {
       const btn = page.locator('.rail').getByRole('button', { name, exact: true });
       await btn.click();
       await expect(btn).toHaveAttribute('aria-pressed', 'true');
       await expect(side.locator('.side-panel-title')).toHaveText(title);
       await expect(side.locator('.empty-state')).toBeVisible();
+      await expect(side.locator('.empty-state')).toContainText('Coming soon');
     }
     // Clicking the active rail button closes the panel.
     await page.locator('.rail').getByRole('button', { name: 'Document Properties' }).click();

@@ -18,6 +18,8 @@ import { toast } from './toast.js';
 import { alertDialog, confirmDialog, promptPassword } from './dialog.js';
 import { handleShortcut, listCommands, primaryShortcut } from './commands.js';
 import { DocTab } from './doc-tab.js';
+import { createFindBar } from './find-bar.js';
+import { FindController } from '../view/find-controller.js';
 import { getPdfjs, openPdf, isPasswordCancel } from '../view/pdfjs.js';
 import { runTool, getTool, listTools } from '../tools/registry.js';
 import { getSetting, getArrangement, saveArrangement, resetArrangement, onSettingsChange } from '../core/settings.js';
@@ -64,6 +66,7 @@ export class App extends EventTarget {
       getTab: () => this.activeTab,
       getState: () => this.arrangement.side,
       setState: (patch) => this.updateArrangement('side', patch),
+      app: this,
     });
     this.toolsPanel.splitter.classList.add('tools-splitter');
     this.sidePanel.splitter.classList.add('side-splitter');
@@ -85,6 +88,12 @@ export class App extends EventTarget {
       for (const file of files) await this.openFile(file);
     });
     root.append(this.fileInput);
+
+    this.findBar = createFindBar({
+      getController: () => this.findController(this.activeTab),
+      onClose: () => this.closeFind(),
+    });
+    this.shell.main.append(this.findBar.el);
 
     registerAppCommands(this);
     this.menubar = createMenubar(buildMenus(this), { label: t('menu.label') });
@@ -158,9 +167,11 @@ export class App extends EventTarget {
       tab.viewer.focus();
     } else {
       this.exitReadMode();
+      this.closeFind();
       this.shell.setStatusBar(null);
       document.title = t('app.name');
     }
+    this.findBar.rebind();
     this.renderTabs();
     this.sidePanel.render();
     this.dispatchEvent(new CustomEvent('tabchange'));
@@ -434,6 +445,28 @@ export class App extends EventTarget {
     } catch {
       toast(t('fullscreen.unavailable'), { kind: 'error' });
     }
+  }
+
+  // -------------------------------------------------------------- find
+
+  findController(tab) {
+    if (!tab) return null;
+    tab.find ??= new FindController(tab.viewer);
+    return tab.find;
+  }
+
+  openFind() {
+    if (!this.activeTab) {
+      toast(t('find.needsDocument'));
+      return;
+    }
+    this.findBar.open();
+  }
+
+  closeFind() {
+    if (!this.findBar?.isOpen) return;
+    this.findBar.close();
+    this.viewer?.focus();
   }
 
   // ------------------------------------------------------ tools/palette

@@ -90,6 +90,8 @@ export class DocTab extends EventTarget {
   }
 
   destroy() {
+    this.dispatchEvent(new CustomEvent('destroy'));
+    this.find?.destroy();
     this.viewer.destroy();
     this.pdf.loadingTask.destroy();
     this.host.remove();

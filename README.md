@@ -124,6 +124,20 @@ dist/pdf-editor.html   the deliverable
   visible area only. Text layer (pdf.js `TextLayer`) for selection, a link layer
   for internal/external links, and an error tile when a page can't be loaded.
 
+### Find and navigation
+
+- `view/text-index.js` — indexes each page's text in the background (yielding
+  to the UI), keeping every text item's offset so matches map back onto the
+  text layer's spans. `view/find-controller.js` searches the index as pages
+  arrive ("n of m+" while indexing), highlights matches in rendered text
+  layers, and scrolls the current match into view.
+- `view/history.js` — back/forward (Alt+← / Alt+→) after link, bookmark,
+  thumbnail and page-box jumps.
+- `ui/panels/pages-panel.js` (lazy thumbnails, cached per tab as compressed
+  images) and `ui/panels/bookmarks-panel.js` (ARIA tree + search).
+- Page labels (`i`, `iv`, `A-1`…) show in the status bar and thumbnails; the
+  page box accepts a label first, then a page number.
+
 ### Shell (`src/ui/`)
 
 - `app.js` — controller: tabs (`doc-tab.js`: one pdf.js document + viewer +
@@ -189,6 +203,10 @@ it's skipped and so are its tests.
   (the shortcuts do work where the browser lets them through).
 - Recent files keep a copy of each file (up to 12 files, each up to 150 MB) in
   this browser's storage; "Clear recent files" deletes them.
+
+- Search matches the text exactly as stored: ligatures (ﬁ), accents written
+  as separate marks, and words hyphenated across lines aren't normalized, so
+  e.g. "find" won't match "ﬁnd".
 
 ## Privacy
 
