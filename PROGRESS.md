@@ -9,8 +9,8 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M2 | App shell, tabs, home screen | approved |
 | M3 | Find and navigation | approved |
 | M4 | Document model, undo/redo, save, autosave | approved |
-| M5 | Organize pages | awaiting approval |
-| M6 | Combine and split | todo |
+| M5 | Organize pages | approved |
+| M6 | Combine and split | in progress |
 | M7 | Properties, attachments, layers | todo |
 | M8 | Comments and annotations | todo |
 | M9 | Forms and signatures | todo |
@@ -143,7 +143,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   `reloadApp()` helper waits 250 ms before reloading (Chromium localStorage commit race under load).
   Fixed along the way: palette reopen race (closed dialog not yet 'close'd), autosave deletion awaited on save.
 
-### M5 — Organize pages (awaiting approval)
+### M5 — Organize pages (approved)
 - **UI:** `ui/organize/organizer.js` (overlay inside the tab host; viewer container hidden while open; windowed
   grid with absolute tiles; listbox + aria-activedescendant; pointer DnD; keyboard), `ui/organize/insert-dialog.js`.
   `app.openOrganizer()/closeOrganizer()`, command `organize.close` (Esc). Tools ready: organize-pages,
