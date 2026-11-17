@@ -4,7 +4,7 @@ import { PDFDocument, PDFName } from 'pdf-lib';
 import { test, expect, openApp, openFixture, pageIn, shot } from './helpers.mjs';
 
 const panel = (page) => page.locator('#side-panel');
-const bar = (page) => page.locator('.annot-toolbar');
+const bar = (page) => page.getByRole('toolbar', { name: 'Comment tools', includeHidden: true });
 const lastLabel = (page) => page.evaluate(() => window.pdfEditor.app.activeTab.model.history.current.label);
 /** Wait for a named step and for the view to have reloaded the changed document. */
 async function stepDone(page, label) {

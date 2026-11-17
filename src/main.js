@@ -14,6 +14,8 @@ import { registerCombineTools } from './tools/combine.js';
 import { registerInfoTools } from './tools/info.js';
 import { registerAnnotateTools } from './tools/annotate.js';
 import { registerCommentsPanel } from './ui/panels/comments-panel.js';
+import { registerFormTools } from './tools/forms.js';
+import { registerFieldsPanel } from './ui/panels/fields-panel.js';
 import { registerLayersPanel } from './ui/panels/layers-panel.js';
 import { registerAttachmentsPanel } from './ui/panels/attachments-panel.js';
 import { registerPropertiesPanel } from './ui/panels/properties-panel.js';
@@ -41,6 +43,8 @@ async function start() {
   registerInfoTools();
   registerAnnotateTools();
   registerCommentsPanel();
+  registerFormTools();
+  registerFieldsPanel();
   registerLayersPanel();
   registerAttachmentsPanel();
   registerPropertiesPanel();

@@ -46,6 +46,9 @@ export class Viewer extends EventTarget {
     this.mode = mode;
     this.cover = cover;
     this.rotation = rotation;
+    this.formScope = `f${Math.random().toString(36).slice(2, 8)}`;
+    this.formsReadOnly = false;
+    this.fieldPages = null;
     this.current = 0;
     this.layout = null;
     this.destroyed = false;
@@ -96,6 +99,13 @@ export class Viewer extends EventTarget {
         getOcConfig: () => this.ocConfigPromise,
         onTextLayer: (view) => this.emit('textlayer', { index: view.index }),
         onAnnotations: (view) => this.emit('annotations', { index: view.index }),
+        forms: {
+          scope: this.formScope,
+          onCommit: (c) => this.emit('fieldcommit', { ...c, page: i }),
+          onSign: (c) => this.emit('fieldsign', { ...c, page: i }),
+          onTabOut: (dir) => this.tabOutOfPage(i, dir),
+          isReadOnly: () => this.formsReadOnly,
+        },
       }),
     );
     const frag = document.createDocumentFragment();
@@ -178,8 +188,11 @@ export class Viewer extends EventTarget {
     } else {
       const set = affected ? new Set(affected) : null;
       this.views.forEach((v, i) => {
-        v.proxy = null; // re-fetched from the new document when next needed
+        // In-flight work belongs to the old document (about to be destroyed):
+        // cancel it; unchanged pages keep their canvas and re-plan if needed.
         if (!set || set.has(i)) v.reset();
+        else v.cancel();
+        v.proxy = null; // re-fetched from the new document when next needed
       });
     }
     const indexes = all || !affected ? [...Array(this.numPages).keys()] : affected.filter((i) => i < this.numPages);
@@ -194,6 +207,59 @@ export class Viewer extends EventTarget {
     this.relayout(anchor && anchor.idx < this.numPages ? anchor : null);
     this.emit('docchange', { affected: all ? null : affected, structural: all });
     this.emit('pagechange');
+  }
+
+  // ------------------------------------------------------------ forms
+
+  /** Pages that have form fields (0-based, sorted), set by the forms controller. */
+  setFieldPages(pages) {
+    this.fieldPages = pages ? [...pages].sort((a, b) => a - b) : null;
+  }
+
+  /** Tab past the last field of a page: continue on the next page with fields. */
+  tabOutOfPage(index, dir) {
+    const pages = this.fieldPages;
+    if (!pages?.length) return false;
+    const next = dir > 0 ? pages.find((p) => p > index) : [...pages].reverse().find((p) => p < index);
+    if (next === undefined) return false;
+    this.focusFormEdge(next, dir);
+    return true;
+  }
+
+  /** Resolve once page `index` has its annotations (and form layer) loaded. */
+  whenAnnotations(index, timeout = 5000) {
+    const v = this.views[index];
+    if (v?.widgets) return Promise.resolve(v);
+    return new Promise((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        this.removeEventListener('annotations', on);
+        resolve(this.views[index]);
+      };
+      const on = (e) => {
+        if (e.detail.index === index) done();
+      };
+      const timer = setTimeout(done, timeout);
+      this.addEventListener('annotations', on);
+    });
+  }
+
+  async focusFormEdge(index, dir) {
+    if (!this.views[index]?.widgets) this.goToPage(index + 1);
+    const view = await this.whenAnnotations(index);
+    view?.formLayer?.focusEdge(dir);
+  }
+
+  /** Focus a field's control (scrolling to its page first). */
+  async focusField(name, page) {
+    if (!this.views[page]?.widgets) this.goToPage(page + 1);
+    const view = await this.whenAnnotations(page);
+    return view?.formLayer?.focusField(name) ?? false;
+  }
+
+  /** Show the document's values again (a commit failed). */
+  refreshForms() {
+    for (const v of this.views) v.formLayer?.clearPending();
   }
 
   /** Load the first page's size, lay out, render, then fetch other sizes. */

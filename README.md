@@ -257,6 +257,36 @@ their target.
   (stamps, polygons…) can be moved, resized and deleted, and keep their own
   appearance, scaled.
 
+### Forms and signatures (`src/view/form-layer.js`, `src/ui/forms/`, `src/core/ops/form-*.js`)
+
+- **Filling.** Pages render in pdf.js "forms" mode and an HTML form layer
+  sits on top: text (single/multi-line, password, max length), checkboxes and
+  radio buttons (drawn with the PDF's own on/off appearances), dropdowns
+  (editable ones get suggestions), list boxes (multi-select). Each committed
+  change (leaving a field, Enter, a click) is one undo step ("Fill email"): a
+  worker op writes the value with pdf-lib **and regenerates the appearance**
+  so other viewers show it too. Values update in place after edits, undo and
+  redo, so focus and Tab order survive; Tab continues onto the next page that
+  has fields. **Highlight fields** (Fields panel or View menu) tints fillable
+  fields and outlines required ones.
+- **Fields panel:** every field with name, type, value and page, in tab
+  order; click or Enter to jump to it and focus it.
+- **Signatures** (Add signature, or a signature field's *Sign* button): draw,
+  type (a few script-style system fonts) or upload an image (the white
+  background can be made transparent). Signatures can be saved on this device
+  (IndexedDB) and reused. A placed signature is a Stamp annotation with the
+  image as its appearance, so it can be moved and resized (aspect kept) like
+  any annotation, and it appears in Comments as "Signature". The UI says
+  plainly that this is a **visual signature, not a cryptographic one**.
+- **Prepare form:** draw text fields, checkboxes, dropdowns and signature
+  fields; select, move, resize (handles), double-click or *Properties…* for
+  name, required, default value (which also becomes the current value) and
+  dropdown options; Delete removes the field. All undo steps.
+- **Flatten form** draws every field's current appearance into the page and
+  removes the fields (one undo step). pdf-lib's own `flatten()`/`removeField()`
+  miss separate widget annotations and fields without appearances, so the
+  worker uses its own versions.
+
 ### Find and navigation
 
 - `view/text-index.js` — indexes each page's text in the background (yielding
@@ -364,6 +394,17 @@ it's skipped and so are its tests.
   Text boxes use Helvetica (WinAnsi): characters outside it are drawn as "?"
   in the appearance (the comment text itself keeps them). Polygon, polyline,
   squiggly and stamp annotations can't be created yet.
+
+- Forms: JavaScript (calculations, validation, formatting, button actions)
+  isn't run; push buttons are shown but do nothing. Appearances use Helvetica:
+  text outside its character set makes the field fall back to
+  `/NeedAppearances` (viewers draw it themselves). XFA-only forms aren't
+  supported. Radio groups can't be created in Prepare form yet (existing ones
+  can be filled, moved, renamed and deleted).
+- Signatures are visual only (an image), not digital signatures. Typed
+  signatures use fonts installed on the device, so they look different on
+  different systems (the result is saved as an image, so the PDF itself is
+  the same everywhere).
 
 ## Privacy
 

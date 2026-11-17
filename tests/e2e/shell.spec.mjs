@@ -143,17 +143,11 @@ test.describe('panels', () => {
     await openFixture(page, 'multipage.pdf');
     await expect(side.locator('.thumb').first()).toBeVisible(); // Pages panel is built (M3)
 
-    // Panels built in later milestones still show "Coming soon".
-    for (const [name, title] of [['Fields', 'Fields']]) {
+    // Every panel is built now (M9 finished the Fields panel).
+    for (const name of ['Fields', 'Comments', 'Layers', 'Attachments', 'Document Properties']) {
       const btn = page.locator('.rail').getByRole('button', { name, exact: true });
       await btn.click();
       await expect(btn).toHaveAttribute('aria-pressed', 'true');
-      await expect(side.locator('.side-panel-title')).toHaveText(title);
-      await expect(side.locator('.empty-state')).toBeVisible();
-      await expect(side.locator('.empty-state')).toContainText('Coming soon');
-    }
-    for (const name of ['Comments', 'Layers', 'Attachments', 'Document Properties']) {
-      await page.locator('.rail').getByRole('button', { name, exact: true }).click();
       await expect(side.locator('.side-panel-title')).toHaveText(name);
       await expect(side).not.toContainText('Coming soon');
     }

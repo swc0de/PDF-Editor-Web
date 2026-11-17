@@ -13,7 +13,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M6 | Combine and split | approved |
 | M7 | Properties, attachments, layers | approved |
 | M8 | Comments and annotations | approved |
-| M9 | Forms and signatures | in progress |
+| M9 | Forms and signatures | awaiting approval |
 | M10 | Protect, redact, print | todo |
 | M11 | Scan & OCR | todo |
 | M12 | Accessibility checker, polish and final audit | todo |
@@ -221,4 +221,32 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   Test helper `stepDone` also waits for `model.busy` false (history label changes before the view reloads).
 - **Known limitations:** no on-page reply pop-ups; Helvetica/WinAnsi in text-box appearances; no polygon/squiggly/stamp
   creation; toolbar wraps to two rows when the viewport is narrow (side + tools panels open).
+
+### M9 — Forms and signatures (awaiting approval)
+- **View:** `view/form-layer.js` — HTML controls over widgets (pdf.js ENABLE_FORMS: text/choice widgets draw only their box;
+  checkbox/radio/push-button appearances come from `render({ annotationCanvasMap })` — tiles get a throwaway map). The layer
+  survives `PageView.reset()` (`release({ keepForm: true })`) and updates values in place when the same widget ids come back
+  (keeps focus; `pending` map avoids flicker while a commit is in flight). Never re-append the layer node (blurs focus).
+  Viewer: `fieldcommit` / `fieldsign` events, `setFieldPages`, `tabOutOfPage` (cross-page Tab), `whenAnnotations(i)`,
+  `focusField(name, page)`, `refreshForms()`, `formsReadOnly`.
+- **Fixed race:** `replaceDocument` now cancels in-flight work on unaffected pages (their proxy belongs to the old doc);
+  `renderLinks` keeps its own proxy reference. Back-to-back edits used to leave an error tile.
+- **Ops:** `core/ops/form-ops.js` — setFieldValues, fieldInfo (query), addField (text/checkbox/dropdown/signature; names
+  "Text 1"…), setFieldProps (rename partial name, required, default value → also current value, options), setWidgetRect,
+  removeField, flattenForm, addSignature (Stamp, /Contents "Visual signature", image XObject AP). `form-helpers.js`:
+  getField, annotPageIndex, fieldWidgets, fieldKind, refreshField (Helvetica; failure → NeedAppearances), safe
+  removeFieldSafe / flattenFields (pdf-lib's versions break on separate widgets / missing AP). Worker saves with
+  `updateFieldAppearances: false` (ops refresh what they change).
+- **UI:** `ui/forms/forms.js` (`app.forms`: commits → `setFieldValues` steps, `loadFields(tab)` → `tab.fields` /
+  `fieldschange`, highlight pref `forms.highlight`, signing + placement mode, flatten), `form-editor.js` (`app.formEditor`,
+  Prepare form toolbar `.form-toolbar`), `field-dialog.js`, `signature-dialog.js` (draw/type/image, saved list),
+  `core/signatures.js` (IDB store `signatures`), `ui/panels/fields-panel.js`. Annotator/form editor/placement are mutually
+  exclusive. Signature stamps: `isSignature()` → type "Signature" in Comments; Stamp resize keeps aspect ratio.
+- **Tools ready:** fill-form, add-signature, prepare-form, flatten-form (`tools/forms.js`); commands view.highlightFields,
+  formEdit.*; hidden Delete/Escape for the form editor.
+- **Tests:** `forms.spec.mjs` (6: fill all kinds → undo in place → save → reopen; Fields panel/jump/highlight/cross-page Tab;
+  prepare → save → reopen → fillable; signatures draw/place/move/sign field/saved/typed → save; flatten undo; dark
+  screenshots), `tests/unit/form-ops.spec.mjs` (4). M8 tests now find the comment toolbar by role (two toolbars exist).
+- **Known limitations:** no form JavaScript; push buttons inert; Helvetica appearances; no radio-group authoring; visual
+  signatures only.
 

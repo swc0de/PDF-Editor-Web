@@ -3,6 +3,7 @@
 import { h } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { t } from '../i18n/index.js';
+import { FormLayer } from './form-layer.js';
 
 /** Above this zoom, pages are drawn as tiles (only the visible ones). */
 export const TILE_ZOOM = 3;
@@ -27,13 +28,17 @@ export class PageView {
    * @param {object} deps.pdfjs           the pdf.js module
    * @param {(i:number) => Promise<object>} deps.getPage
    */
-  constructor(index, { pdfjs, getPage, getOcConfig, onTextLayer, onAnnotations }) {
+  constructor(index, { pdfjs, getPage, getOcConfig, onTextLayer, onAnnotations, forms }) {
     this.index = index;
     this.pdfjs = pdfjs;
     this.getPage = getPage;
     this.getOcConfig = getOcConfig;
     this.onTextLayer = onTextLayer;
     this.onAnnotations = onAnnotations;
+    this.forms = forms ?? null; // { scope, onCommit, onSign, onTabOut, isReadOnly } → FormLayer
+    this.formLayer = null;
+    this.widgets = null; // widget annotations (pdf.js data) once loaded
+    this.annotationCanvases = null; // checkbox/radio/button appearances from the last full render
     this.annotations = null; // markup annotations (pdf.js data) once loaded
     this.textLayerObj = null; // the pdf.js TextLayer (textDivs ↔ text items)
     this.proxy = null;
@@ -195,14 +200,18 @@ export class PageView {
     }
   }
 
-  async draw(canvas, viewport, transform, stale) {
+  async draw(canvas, viewport, transform, stale, annotationCanvasMap = new Map()) {
     const oc = (await this.getOcConfig?.()) ?? null;
     if (stale()) return false;
     this.task = this.proxy.render({
       canvas,
       viewport,
       transform,
+      // Forms mode: widgets are drawn by the HTML form layer; checkbox, radio
+      // and push-button appearances land in annotationCanvasMap (a throwaway
+      // map for tiles, so they're never baked into the page canvas).
       annotationMode: this.pdfjs.AnnotationMode.ENABLE_FORMS,
+      annotationCanvasMap,
       optionalContentConfigPromise: oc ? Promise.resolve(oc) : undefined,
     });
     try {
@@ -219,8 +228,10 @@ export class PageView {
     canvas.width = Math.max(1, Math.floor(viewport.width * params.dpr));
     canvas.height = Math.max(1, Math.floor(viewport.height * params.dpr));
     const transform = params.dpr !== 1 ? [params.dpr, 0, 0, params.dpr, 0, 0] : undefined;
-    if (!(await this.draw(canvas, viewport, transform, stale))) return releaseCanvas(canvas);
+    const canvases = new Map();
+    if (!(await this.draw(canvas, viewport, transform, stale, canvases))) return releaseCanvas(canvas);
     this.swapCanvas(canvas, key);
+    this.setAnnotationCanvases(canvases);
   }
 
   async renderBase(params, stale) {
@@ -230,8 +241,10 @@ export class PageView {
     const canvas = h('canvas.page-canvas', { 'aria-hidden': 'true' });
     canvas.width = Math.max(1, Math.floor(viewport.width));
     canvas.height = Math.max(1, Math.floor(viewport.height));
-    if (!(await this.draw(canvas, viewport, undefined, stale))) return releaseCanvas(canvas);
+    const canvases = new Map();
+    if (!(await this.draw(canvas, viewport, undefined, stale, canvases))) return releaseCanvas(canvas);
     this.swapCanvas(canvas, 'base');
+    this.setAnnotationCanvases(canvases);
   }
 
   async renderTile(params, { tile, key }, stale) {
@@ -253,6 +266,11 @@ export class PageView {
     this.tiles.set(tile.id, canvas);
     this.tileLayer.append(canvas);
     this.markRendered();
+  }
+
+  setAnnotationCanvases(map) {
+    this.annotationCanvases = map;
+    this.formLayer?.setCanvases(map);
   }
 
   swapCanvas(canvas, key) {
@@ -298,16 +316,17 @@ export class PageView {
   }
 
   async renderLinks(params, stale) {
-    const annotations = await this.proxy.getAnnotations({ intent: 'display' });
-    if (stale()) return;
-    const viewport = this.proxy.getViewport({ scale: params.scale, rotation: this.rot(params) });
+    const proxy = this.proxy;
+    const annotations = await proxy.getAnnotations({ intent: 'display' });
+    if (stale() || proxy !== this.proxy) return;
+    const viewport = proxy.getViewport({ scale: params.scale, rotation: this.rot(params) });
     // Kept for converting pointer positions ↔ PDF coordinates (annotation tools).
-    this.baseViewport = this.proxy.getViewport({ scale: 1, rotation: this.rot(params) });
+    this.baseViewport = proxy.getViewport({ scale: 1, rotation: this.rot(params) });
     const div = h('div.linkLayer');
     this.pdfjs.setLayerDimensions(div, viewport);
-    const [vx0, , vx1, vy1] = this.proxy.view;
+    const [vx0, , vx1, vy1] = proxy.view;
     const W = vx1 - vx0;
-    const H = vy1 - this.proxy.view[1];
+    const H = vy1 - proxy.view[1];
     for (const a of annotations) {
       if (a.subtype !== 'Link') continue;
       const url = a.url ?? null;
@@ -351,6 +370,18 @@ export class PageView {
     this.linkLayer = div;
     this.linkRotation = params.rotation;
     this.el.append(div);
+    // Form fields: HTML controls, updated in place across document reloads.
+    const widgets = annotations.filter((a) => a.subtype === 'Widget');
+    this.widgets = widgets;
+    if (this.forms && (widgets.length || this.formLayer)) {
+      if (!this.formLayer) {
+        this.formLayer = new FormLayer({ ...this.forms, scope: `${this.forms.scope}-p${this.index}` });
+        if (this.annotationCanvases) this.formLayer.setCanvases(this.annotationCanvases);
+      }
+      this.formLayer.render(widgets, proxy.view, this.pdfjs, viewport);
+      // Re-appending a node that holds focus would blur it.
+      if (this.formLayer.el.parentNode !== this.el) this.el.append(this.formLayer.el);
+    }
     this.onAnnotations?.(this);
   }
 
@@ -367,9 +398,9 @@ export class PageView {
     this.clearTiles();
   }
 
-  /** Forget everything about this page (its content changed). */
+  /** Forget everything about this page (its content changed). The form layer stays, to be updated in place. */
   reset() {
-    this.release();
+    this.release({ keepForm: true });
     this.proxy = null;
     if (this.error) {
       this.error = null;
@@ -388,8 +419,14 @@ export class PageView {
   }
 
   /** Free canvases and layers (the placeholder stays, at the right size). */
-  release() {
+  release({ keepForm = false } = {}) {
     this.cancel();
+    if (!keepForm) {
+      this.formLayer?.el.remove();
+      this.formLayer = null;
+      this.annotationCanvases = null;
+    }
+    this.widgets = null;
     if (this.canvas) releaseCanvas(this.canvas);
     this.canvas = null;
     this.canvasKey = null;

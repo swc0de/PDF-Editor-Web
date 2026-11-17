@@ -1,0 +1,265 @@
+/* M9 — form layer, field highlighting, form editor, signatures, Fields panel. */
+
+/* Form layer: HTML controls over widget annotations (positions in % of the page). */
+.formLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.form-field {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: auto;
+  border-radius: 1px;
+}
+.form-control {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0 calc(var(--scale-factor) * 2px);
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #000;
+  font-family: Helvetica, Arial, sans-serif;
+  line-height: 1.15;
+  outline: none;
+  resize: none;
+}
+textarea.form-control { padding-top: calc(var(--scale-factor) * 2px); overflow: auto; }
+select.form-control { cursor: pointer; }
+select.form-control[size] { overflow: auto; }
+select.form-control:not([size]) option { color: #000; background: #fff; }
+select.form-control[size] option:checked { background: #b9d0f3 linear-gradient(#b9d0f3, #b9d0f3); color: #000; }
+.form-control:focus,
+.form-field:focus-within { box-shadow: 0 0 0 2px var(--accent); }
+.form-control:focus { background: rgba(255, 255, 255, .9); }
+.form-control[readonly], .form-control:disabled { cursor: default; }
+
+/* Checkbox / radio / push button: pdf.js appearance canvases; a transparent native input on top. */
+.form-appearance { position: absolute; inset: 0; pointer-events: none; }
+.form-appearance canvas { display: block; width: 100%; height: 100%; }
+.form-appearance canvas[hidden] { display: none; }
+.form-toggle {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.form-toggle:disabled { cursor: default; }
+/* Fallback mark when the widget has no appearance of its own. */
+.ff-checkbox:not(.has-appearance),
+.ff-radio:not(.has-appearance) { border: 1px solid #555; background: #fff; }
+.ff-radio:not(.has-appearance) { border-radius: 50%; }
+.ff-checkbox:not(.has-appearance).checked::after {
+  content: "";
+  position: absolute;
+  left: 30%;
+  top: 10%;
+  width: 30%;
+  height: 55%;
+  border: solid #000;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.ff-radio:not(.has-appearance).checked::after {
+  content: "";
+  position: absolute;
+  inset: 25%;
+  border-radius: 50%;
+  background: #000;
+}
+.ff-button { pointer-events: none; }
+.form-sign {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: rgba(255, 212, 0, .14);
+  color: #6b5800;
+  font-size: calc(var(--scale-factor) * 11px);
+  font-weight: 600;
+  cursor: pointer;
+}
+.form-sign:hover { background: rgba(255, 212, 0, .3); }
+.form-sign:disabled { display: none; }
+
+/* "Highlight fields": a light tint on fillable fields; required ones get a red edge. */
+.viewer-host.highlight-fields .form-field:not(.readonly):is(.ff-text, .ff-choice, .ff-checkbox, .ff-radio) { background-color: rgba(0, 84, 220, .1); }
+.viewer-host.highlight-fields .form-field:not(.readonly):is(.ff-text, .ff-choice, .ff-checkbox, .ff-radio):hover { background-color: rgba(0, 84, 220, .16); }
+.viewer-host.highlight-fields .form-field.required { box-shadow: inset 0 0 0 1px rgba(183, 2, 40, .7); }
+
+/* Prepare form: fields become boxes you can select, move and resize. */
+.viewer-host.form-editing .form-field {
+  outline: 1px dashed color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 0;
+  background-color: rgba(0, 84, 220, .08);
+  cursor: move;
+}
+.viewer-host.form-editing .form-field > * { pointer-events: none; }
+.viewer-host.form-editing .form-field::before {
+  content: attr(data-field-name);
+  position: absolute;
+  bottom: 100%;
+  left: -1px;
+  max-width: 220px;
+  overflow: hidden;
+  padding: 0 4px;
+  border-radius: 3px 3px 0 0;
+  background: color-mix(in srgb, var(--accent) 85%, transparent);
+  color: #fff;
+  font: 600 10px/15px system-ui, sans-serif;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.viewer-host.form-editing .textLayer,
+.viewer-host.form-editing .linkLayer,
+.viewer-host.form-editing .pdf-link,
+.viewer-host.form-editing .annot-box { pointer-events: none !important; }
+.viewer-host.form-drawing .page { cursor: crosshair; }
+.viewer-host.form-drawing .form-field { pointer-events: none; }
+.field-draft {
+  position: absolute;
+  z-index: 5;
+  border: 1.5px dashed var(--accent);
+  background: var(--accent-soft);
+  pointer-events: none;
+}
+.field-selection { z-index: 4; }
+.form-selected-name { overflow: hidden; max-width: 200px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+.form-toolbar .btn.btn-sm { height: 28px; }
+
+/* Placing a signature */
+.viewer-host.placing-signature .page { cursor: copy; }
+.viewer-host.placing-signature :is(.textLayer, .linkLayer, .formLayer, .form-field, .annot-box, .pdf-link) { pointer-events: none !important; }
+.sig-ghost {
+  position: absolute;
+  z-index: 6;
+  opacity: .75;
+  outline: 1px dashed var(--accent);
+  pointer-events: none;
+}
+.sig-place-hint {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-4);
+  z-index: 8;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: var(--popover-shadow);
+  color: var(--text);
+  font-size: var(--text-sm);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Signature dialog */
+.dialog.sig-dialog { width: min(600px, calc(100vw - 32px)); }
+.sig-note { display: flex; gap: var(--space-2); align-items: flex-start; margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+.sig-note .icon { margin-top: 2px; }
+.sig-tabs { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel-2); align-self: flex-start; }
+.sig-tab {
+  height: 26px;
+  padding: 0 var(--space-3);
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.sig-tab[aria-selected="true"] { background: var(--panel); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+.sig-tab:focus-visible { box-shadow: var(--focus-ring); }
+.sig-panel { display: flex; flex-direction: column; gap: var(--space-2); }
+.sig-panel[hidden] { display: none; }
+.sig-pad-wrap { position: relative; }
+.sig-pad {
+  display: block;
+  width: 100%;
+  aspect-ratio: 520 / 180;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  cursor: crosshair;
+  touch-action: none;
+}
+.sig-baseline { position: absolute; left: 8%; right: 8%; bottom: 26%; border-bottom: 1px dashed #c4c9ce; pointer-events: none; }
+.sig-row { display: flex; align-items: center; gap: var(--space-2); }
+.sig-type-input { height: var(--control-h); }
+.sig-fonts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.sig-font {
+  height: 60px;
+  overflow: hidden;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  color: #1e2327;
+  font-size: 28px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.sig-font[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.sig-font:focus-visible { box-shadow: var(--focus-ring); }
+.sig-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: var(--space-2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: repeating-conic-gradient(#f2f3f5 0% 25%, #fff 0% 50%) 0 0 / 16px 16px;
+}
+.sig-preview canvas { max-width: 100%; max-height: 160px; }
+.sig-saved-box { display: flex; flex-direction: column; gap: var(--space-1); }
+.sig-saved-box[hidden] { display: none; }
+.sig-saved-title { color: var(--text-muted); font-size: var(--text-sm); font-weight: 600; }
+.sig-saved { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.sig-saved-item { display: flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); }
+.sig-saved-use { display: flex; align-items: center; height: 48px; padding: 2px 6px; border: none; border-radius: calc(var(--radius) - 2px); background: #fff; cursor: pointer; }
+.sig-saved-use:hover { box-shadow: 0 0 0 1px var(--accent); }
+.sig-saved-use:focus-visible { box-shadow: var(--focus-ring); }
+.sig-saved-use img { max-width: 160px; max-height: 44px; }
+
+/* Field properties dialog */
+.field-textarea { height: auto; min-height: 72px; padding: 6px var(--space-2); resize: vertical; font: inherit; }
+
+/* Fields panel */
+.fields-actions { gap: var(--space-1); }
+.fields-count { font-size: var(--text-sm); }
+.fields-body { flex: 1; min-height: 0; overflow: auto; }
+.fields-list { padding: var(--space-1) 0 var(--space-3); }
+.field-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-2);
+  align-items: start;
+  margin: 2px var(--space-2);
+  padding: 6px var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.field-row:hover { background: var(--panel-2); }
+.field-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.field-row.selected { border-color: var(--accent); background: var(--accent-soft); }
+.field-row-icon { display: inline-flex; margin-top: 2px; color: var(--text-muted); }
+.field-row-text { display: flex; flex-direction: column; min-width: 0; }
+.field-row-name { overflow: hidden; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+.field-required { color: var(--danger); }
+.field-row-meta { font-size: 11px; }
+.field-row-value { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

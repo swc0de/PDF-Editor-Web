@@ -8,16 +8,18 @@ import { t, tn, hasString } from '../../i18n/index.js';
 import { implementPanel } from '../panels.js';
 import { MARKUP } from '../../view/page-view.js';
 import { authorName } from '../../core/settings.js';
-import { toViewportRect } from '../annotate/annotator.js';
+import { toViewportRect, isSignature } from '../annotate/annotator.js';
 
 const TYPE_ICONS = {
   Text: 'stickyNote', FreeText: 'textBox', Highlight: 'highlighter', Underline: 'underline', StrikeOut: 'strikethrough',
-  Squiggly: 'underline', Square: 'square', Circle: 'circle', Line: 'line', Ink: 'pen', Polygon: 'square', PolyLine: 'line', Stamp: 'stamp',
+  Squiggly: 'underline', Square: 'square', Circle: 'circle', Line: 'line', Ink: 'pen', Polygon: 'square', PolyLine: 'line', Stamp: 'stamp', Signature: 'signature',
 };
 const RESOLVED = new Set(['Completed', 'Accepted']);
 const BATCH = 16;
 
-const typeName = (subtype) => (hasString(`annot.type.${subtype}`) ? t(`annot.type.${subtype}`) : subtype);
+/** Type key used for names and the type filter (our visual signatures get their own). */
+const typeKey = (a) => (isSignature(a) ? 'Signature' : a.subtype);
+const typeName = (key) => (hasString(`annot.type.${key}`) ? t(`annot.type.${key}`) : key);
 
 function parseDate(pdfjs, s) {
   if (!s) return null;
@@ -134,7 +136,7 @@ export function registerCommentsPanel() {
         const result = await loadThreads(tab.pdf, pdfjs);
         if (disposed || seq !== loadSeq) return;
         threads = result;
-        const types = [...new Set(threads.map((th) => th.root.subtype))].sort((a, b) => typeName(a).localeCompare(typeName(b)));
+        const types = [...new Set(threads.map((th) => typeKey(th.root)))].sort((a, b) => typeName(a).localeCompare(typeName(b)));
         const authors = [...new Set(threads.flatMap((th) => [th.root, ...th.replies].map((a) => a.titleObj?.str || '')))].filter(Boolean).sort();
         fillOptions(typeSel, types, t('comments.type.all'), typeName);
         fillOptions(authorSel, authors, t('comments.author.all'));
@@ -148,7 +150,7 @@ export function registerCommentsPanel() {
 
       function visible() {
         return threads.filter((th) => {
-          if (filters.type && th.root.subtype !== filters.type) return false;
+          if (filters.type && typeKey(th.root) !== filters.type) return false;
           if (filters.status === 'open' && th.resolved) return false;
           if (filters.status === 'resolved' && !th.resolved) return false;
           if (filters.author && ![th.root, ...th.replies].some((a) => (a.titleObj?.str || '') === filters.author)) return false;
@@ -248,12 +250,12 @@ export function registerCommentsPanel() {
             page: thread.page, parent: root.id, state: thread.resolved ? 'None' : 'Completed', author: authorName() || t('comments.anonymous'),
           }, thread.resolved ? t('step.reopenComment') : t('step.resolveComment')), readOnly),
           actionBtn('pen', t('comments.edit'), () => startEdit(root.id, 'edit'), readOnly),
-          actionBtn('trash', t('comments.delete'), () => app.edit(tab, 'deleteAnnotations', { page: thread.page, ids: [root.id] }, t('step.deleteAnnot', { type: typeName(root.subtype) })), readOnly));
+          actionBtn('trash', t('comments.delete'), () => app.edit(tab, 'deleteAnnotations', { page: thread.page, ids: [root.id] }, t('step.deleteAnnot', { type: typeName(typeKey(root)) })), readOnly));
         const el = h(`div.comment-thread${thread.resolved ? '.resolved' : ''}${selected ? '.selected' : ''}`, {
           role: 'listitem',
           tabIndex: 0,
           dataset: { annotId: root.id, subtype: root.subtype, page: String(thread.page) },
-          'aria-label': t('comments.threadLabel', { type: typeName(root.subtype), author: root.titleObj?.str || t('comments.anonymous') }),
+          'aria-label': t('comments.threadLabel', { type: typeName(typeKey(root)), author: root.titleObj?.str || t('comments.anonymous') }),
           onclick: (e) => {
             if (e.target.closest('button, textarea, a')) return;
             jump(thread);
@@ -267,13 +269,13 @@ export function registerCommentsPanel() {
           },
         },
         h('div.comment-head',
-          h('span.comment-type-icon', { title: typeName(root.subtype), style: { color: colorOf(root) } }, icon(TYPE_ICONS[root.subtype] ?? 'messageSquare', { size: 14 })),
+          h('span.comment-type-icon', { title: typeName(typeKey(root)), style: { color: colorOf(root) } }, icon(TYPE_ICONS[typeKey(root)] ?? 'messageSquare', { size: 14 })),
           meta(root),
           thread.resolved ? h('span.badge.comment-resolved', t('comments.resolvedBadge')) : null,
           actions),
         isEditing && editing.mode === 'edit'
           ? editor(thread, contents, 'edit')
-          : h(`p.comment-text${contents ? '' : '.muted'}`, contents || t('comments.noText', { type: typeName(root.subtype) })),
+          : h(`p.comment-text${contents ? '' : '.muted'}`, contents || t('comments.noText', { type: typeName(typeKey(root)) })),
         replies.length ? h('div.comment-replies', { role: 'list', 'aria-label': tn('comments.replies', replies.length) }, replies.map((r) => h('div.comment-reply', { role: 'listitem', dataset: { annotId: r.id } },
           h('div.comment-head', h('span.comment-reply-icon', icon('reply', { size: 12 })), meta(r),
             h('div.comment-actions', actionBtn('trash', t('comments.deleteReply'), () => app.edit(tab, 'deleteAnnotations', { page: thread.page, ids: [r.id] }, t('step.deleteReply')), readOnly))),

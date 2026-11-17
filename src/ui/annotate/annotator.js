@@ -36,6 +36,29 @@ const SUBTYPE_TOOL = { Highlight: 'highlight', Underline: 'underline', StrikeOut
 
 const norm = (r) => [Math.min(r[0], r[2]), Math.min(r[1], r[3]), Math.max(r[0], r[2]), Math.max(r[1], r[3])];
 
+/** Pointer/CSS ↔ PDF conversions for a page view (CSS px relative to the page box). */
+export function pageGeometry(viewer, view) {
+  const viewport = view.baseViewport.clone({ scale: viewer.layout.scale });
+  const rect = view.el.getBoundingClientRect();
+  return {
+    view,
+    page: view.index,
+    viewport,
+    local: (clientX, clientY) => [clientX - rect.left, clientY - rect.top],
+    toPdf: (x, y) => viewport.convertToPdfPoint(x, y),
+    toCss: (pdfRect) => toViewportRect(viewport, pdfRect),
+    cssToPdfRect: (box) => {
+      const a = viewport.convertToPdfPoint(box[0], box[1]);
+      const b = viewport.convertToPdfPoint(box[2], box[3]);
+      return norm([a[0], a[1], b[0], b[1]]);
+    },
+  };
+}
+
+/** Our visual signatures are Stamp annotations with this /Contents. */
+export const SIGNATURE_CONTENTS = 'Visual signature';
+export const isSignature = (a) => a?.subtype === 'Stamp' && a.contentsObj?.str === SIGNATURE_CONTENTS;
+
 /** A PDF rect → viewport rect (pdf.js 6 dropped convertToViewportRectangle). */
 export function toViewportRect(viewport, r) {
   const a = viewport.convertToViewportPoint(r[0], r[1]);
@@ -108,7 +131,7 @@ export class Annotator extends EventTarget {
     const sel = this.selected();
     if (sel && !sel.tab.model.readOnly && Object.keys(patch).length) {
       const { tab, page, data } = sel;
-      this.app.edit(tab, 'updateAnnotation', { page, id: data.id, ...patch }, t('step.styleAnnot', { type: this.typeName(data.subtype) }));
+      this.app.edit(tab, 'updateAnnotation', { page, id: data.id, ...patch }, t('step.styleAnnot', { type: this.typeName(data.subtype, data) }));
     }
     this.toolbar.sync();
   }
@@ -125,6 +148,8 @@ export class Annotator extends EventTarget {
       return;
     }
     this.app.closeOrganizer?.();
+    this.app.formEditor?.deactivate();
+    this.app.forms?.cancelPlacing();
     this.cancelDraft();
     this.tool = tool;
     if (DRAW_TOOLS.has(tool)) this.deselect();
@@ -153,7 +178,8 @@ export class Annotator extends EventTarget {
     }
   }
 
-  typeName(subtype) {
+  typeName(subtype, data) {
+    if (data && isSignature(data)) return t('annot.type.Signature');
     return hasString(`annot.type.${subtype}`) ? t(`annot.type.${subtype}`) : subtype || t('annot.type.unknown');
   }
 
@@ -211,21 +237,7 @@ export class Annotator extends EventTarget {
   }
 
   geometry(view) {
-    const viewport = view.baseViewport.clone({ scale: this.viewer.layout.scale });
-    const rect = view.el.getBoundingClientRect();
-    return {
-      view,
-      page: view.index,
-      viewport,
-      local: (clientX, clientY) => [clientX - rect.left, clientY - rect.top],
-      toPdf: (x, y) => viewport.convertToPdfPoint(x, y),
-      toCss: (pdfRect) => toViewportRect(viewport, pdfRect),
-      cssToPdfRect: (box) => {
-        const a = viewport.convertToPdfPoint(box[0], box[1]);
-        const b = viewport.convertToPdfPoint(box[2], box[3]);
-        return norm([a[0], a[1], b[0], b[1]]);
-      },
-    };
+    return pageGeometry(this.viewer, view);
   }
 
   onPointerDown(e) {
@@ -322,6 +334,23 @@ export class Annotator extends EventTarget {
         if (mode.includes('e')) x1 = Math.max(x0 + 8, x1 + dx);
         if (mode.includes('n')) y0 = Math.min(y1 - 8, y0 + dy);
         if (mode.includes('s')) y1 = Math.max(y0 + 8, y1 + dy);
+        // Signatures and stamps keep their aspect ratio.
+        if (sel.data.subtype === 'Stamp') {
+          const ratio = (start[2] - start[0]) / Math.max(1, start[3] - start[1]);
+          const w = x1 - x0;
+          const hh = y1 - y0;
+          if (mode === 'n' || mode === 's') {
+            x1 = x0 + hh * ratio;
+          } else if (mode === 'e' || mode === 'w') {
+            y1 = y0 + w / ratio;
+          } else {
+            const k = Math.max(w / (start[2] - start[0]), hh / (start[3] - start[1]));
+            const nw = (start[2] - start[0]) * k;
+            const nh = (start[3] - start[1]) * k;
+            if (mode.includes('w')) x0 = x1 - nw; else x1 = x0 + nw;
+            if (mode.includes('n')) y0 = y1 - nh; else y1 = y0 + nh;
+          }
+        }
       }
       box = [x0, y0, x1, y1];
       frame?.classList.add('dragging');
@@ -332,7 +361,7 @@ export class Annotator extends EventTarget {
       window.removeEventListener('pointerup', up);
       frame?.classList.remove('dragging');
       if (!moved) return;
-      const label = t(mode === 'move' ? 'step.moveAnnot' : 'step.resizeAnnot', { type: this.typeName(sel.data.subtype) });
+      const label = t(mode === 'move' ? 'step.moveAnnot' : 'step.resizeAnnot', { type: this.typeName(sel.data.subtype, sel.data) });
       this.app.edit(sel.tab, 'updateAnnotation', { page: sel.page, id: sel.data.id, from: sel.data.rect, rect: g.cssToPdfRect(box) }, label);
     };
     window.addEventListener('pointermove', move);
@@ -346,7 +375,7 @@ export class Annotator extends EventTarget {
       toast(t(`edit.readOnly.${sel.tab.model.readOnly}`), { kind: 'error' });
       return;
     }
-    const label = t('step.deleteAnnot', { type: this.typeName(sel.data.subtype) });
+    const label = t('step.deleteAnnot', { type: this.typeName(sel.data.subtype, sel.data) });
     this.deselect();
     await this.app.edit(sel.tab, 'deleteAnnotations', { page: sel.page, ids: [sel.data.id] }, label);
   }

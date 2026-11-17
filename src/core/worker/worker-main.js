@@ -75,7 +75,8 @@ export function workerMain(OPS, HELPERS, JOBS) {
         reply({ id, ok: true, value }, transfer);
         return;
       }
-      const saved = await entry.doc.save();
+      // Form ops regenerate the appearances they change themselves.
+      const saved = await entry.doc.save({ updateFieldAppearances: false });
       entry.version = msg.newVersion;
       const buffer = saved.byteOffset === 0 && saved.byteLength === saved.buffer.byteLength
         ? saved.buffer

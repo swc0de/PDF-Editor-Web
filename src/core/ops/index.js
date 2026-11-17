@@ -4,11 +4,13 @@ import * as pageOps from './page-ops.js';
 import * as infoOps from './info-ops.js';
 import * as annotOps from './annot-ops.js';
 import * as annotHelpers from './annot-helpers.js';
+import * as formOps from './form-ops.js';
+import * as formHelpers from './form-helpers.js';
 import * as helpers from './pdf-helpers.js';
 import * as jobs from './jobs.js';
 
-export const OPS = { ...pageOps, ...infoOps, ...annotOps };
-export const HELPERS = { ...helpers, ...annotHelpers };
+export const OPS = { ...pageOps, ...infoOps, ...annotOps, ...formOps };
+export const HELPERS = { ...helpers, ...annotHelpers, ...formHelpers };
 export const JOBS = { ...jobs };
 
 const literal = (table) => `{${Object.entries(table).map(([name, fn]) => `${JSON.stringify(name)}: (${fn.toString()})`).join(',\n')}}`;

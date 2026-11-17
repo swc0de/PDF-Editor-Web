@@ -32,6 +32,9 @@ import { formatPageRange } from '../core/page-range.js';
 import { getPdfjs, openPdf, isPasswordCancel } from '../view/pdfjs.js';
 import { Annotator } from './annotate/annotator.js';
 import { registerAnnotateCommands } from '../tools/annotate.js';
+import { Forms } from './forms/forms.js';
+import { FormEditor } from './forms/form-editor.js';
+import { registerFormCommands } from '../tools/forms.js';
 import { runTool, getTool, listTools } from '../tools/registry.js';
 import { getSetting, getArrangement, saveArrangement, resetArrangement, onSettingsChange } from '../core/settings.js';
 import { contentId, addRecent, setRecentThumbnail, getRecentBytes, removeRecent, clearRecents } from '../core/recents.js';
@@ -111,9 +114,12 @@ export class App extends EventTarget {
     });
     this.shell.main.append(this.findBar.el);
     this.annotator = new Annotator(this);
+    this.forms = new Forms(this);
+    this.formEditor = new FormEditor(this);
 
     registerAppCommands(this);
     registerAnnotateCommands(this);
+    registerFormCommands(this);
     this.menubar = createMenubar(buildMenus(this), { label: t('menu.label') });
     this.shell.menubarSlot.append(this.menubar.el);
 
