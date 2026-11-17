@@ -26,7 +26,8 @@ export async function getThumb(tab, index) {
   state(tab);
   const page = await tab.pdf.getPage(index + 1);
   const rotation = (page.rotate + tab.viewer.rotation) % 360;
-  const key = page.ref ? `${page.ref.num}-${page.ref.gen}-${rotation}` : `i${index}-${rotation}`;
+  const layers = tab.viewer.ocVersion; // layer visibility changes the picture
+  const key = page.ref ? `${page.ref.num}-${page.ref.gen}-${rotation}-${layers}` : `i${index}-${rotation}-${layers}`;
   tab.thumbKeys[index] = key;
   const cached = tab.thumbs.get(key);
   if (cached) return cached;
@@ -37,7 +38,8 @@ export async function getThumb(tab, index) {
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(viewport.width));
   canvas.height = Math.max(1, Math.round(viewport.height));
-  await page.render({ canvas, viewport }).promise;
+  const oc = (await tab.viewer.ocConfigPromise) ?? null;
+  await page.render({ canvas, viewport, optionalContentConfigPromise: oc ? Promise.resolve(oc) : undefined }).promise;
   const blob = await canvasToBlob(canvas);
   canvas.width = 0;
   canvas.height = 0;

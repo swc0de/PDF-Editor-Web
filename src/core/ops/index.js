@@ -1,10 +1,11 @@
 // Every operation the pdf-lib worker can run, by name. Later milestones add
 // more op modules here.
 import * as pageOps from './page-ops.js';
+import * as infoOps from './info-ops.js';
 import * as helpers from './pdf-helpers.js';
 import * as jobs from './jobs.js';
 
-export const OPS = { ...pageOps };
+export const OPS = { ...pageOps, ...infoOps };
 export const HELPERS = { ...helpers };
 export const JOBS = { ...jobs };
 

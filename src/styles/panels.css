@@ -413,3 +413,65 @@
   font-size: var(--text-sm);
 }
 .split-preview.invalid { color: var(--danger); }
+
+/* ----------------------------------------- Layers / attachments / properties */
+.layers-toolbar { flex-wrap: wrap; }
+.layers-body, .attachments-body, .props-body { flex: 1; min-height: 0; overflow: auto; }
+.layers-count { padding: var(--space-2) var(--space-3) 0; font-size: var(--text-sm); }
+.layer-list { margin: 0; padding: var(--space-1) var(--space-2); list-style: none; }
+.layer-list .layer-list { padding: 0 0 0 var(--space-4); }
+.layer-label { display: flex; align-items: center; gap: var(--space-2); min-height: 30px; padding: 0 var(--space-2); border-radius: var(--radius-sm); cursor: pointer; }
+.layer-label:hover { background: var(--hover); }
+.layer-label input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+.layer-group-name { display: block; padding: var(--space-2) var(--space-2) 2px; color: var(--text-muted); font-size: var(--text-sm); font-weight: 600; }
+
+.attachment-list { margin: 0; padding: var(--space-2); list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
+.attachment {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+.attachment-icon { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--accent-text); }
+.attachment-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.attachment-name { font-weight: 500; overflow-wrap: anywhere; }
+.attachment-meta, .attachment-desc { font-size: var(--text-sm); }
+.attachment-desc { color: var(--text); }
+.attachment-actions { display: flex; align-items: center; gap: 2px; flex: none; }
+.attachment-actions .btn.icon-btn { width: 28px; height: 28px; }
+
+.props-body { padding: 0 0 var(--space-4); }
+.props-section { border-bottom: 1px solid var(--border); }
+.props-section > summary {
+  padding: var(--space-3);
+  font-weight: 600;
+  cursor: pointer;
+  list-style-position: inside;
+}
+.props-section > summary:hover { background: var(--hover); }
+.props-section > :not(summary) { padding: 0 var(--space-3) var(--space-3); }
+.props-form { display: flex; flex-direction: column; gap: var(--space-2); }
+.props-form .field .input { height: var(--control-h-sm); }
+.props-form textarea.input { height: auto; padding: 6px var(--space-2); resize: vertical; font: inherit; }
+.props-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.props-note { font-size: var(--text-sm); }
+.props-list { display: grid; grid-template-columns: minmax(96px, 40%) 1fr; gap: 6px var(--space-3); margin: 0; font-size: var(--text-sm); }
+.props-list dt { color: var(--text-muted); }
+.props-list dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.props-sizes, .props-perms, .font-list { margin: 0; padding: 0; list-style: none; }
+.props-perms li { display: flex; align-items: center; gap: 6px; }
+.props-perms li.allowed .icon { color: var(--success); }
+.props-perms li.denied { color: var(--text-muted); }
+.props-perms li.denied .icon { color: var(--danger); }
+.font-list { display: flex; flex-direction: column; gap: 6px; font-size: var(--text-sm); }
+.font-item { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.font-name { font-weight: 500; overflow-wrap: anywhere; }
+.font-type { font-size: var(--text-xs); }
+.font-embed { margin-left: auto; }
+.font-embed.embedded { background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success); }
+.font-embed.missing { background: color-mix(in srgb, var(--warning) 20%, transparent); color: var(--warning); }
+.btn-link { padding: 0; border: 0; background: none; color: var(--accent-text); text-decoration: underline; cursor: pointer; font: inherit; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

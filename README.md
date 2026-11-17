@@ -208,6 +208,25 @@ title/author/subject/keywords/language. **Not carried over:** page labels,
 attachments and named destinations; links to pages that weren't included lose
 their target.
 
+### Information panels (`src/ui/panels/`)
+
+- **Document Properties:** title, author, subject and keywords are editable
+  (*Apply* = one undo step). Read-only: file name and size, PDF version, pages
+  and page sizes (named: "A4 portrait × 3"…), producer, application,
+  created/modified dates, tagged, language, fast web view, counts of form
+  fields / layers / attachments (linking to their panels), fonts with their
+  embedding status (inspected by pdf-lib in the worker: `inspectFonts`), and
+  encryption with the permission list.
+- **Attachments:** name, size, description; PDFs open in a new tab, other
+  files are saved; add and remove are undo steps.
+- **Layers:** optional content groups in the document's own order and
+  nesting, with visibility toggles that redraw immediately (pdf.js
+  `optionalContentConfigPromise`), Show all / Hide all / Reset to the
+  document's defaults. Layer visibility is a *view* setting: it isn't saved
+  into the PDF and isn't an undo step; it survives edits.
+- Any encrypted PDF (even one that opens without a password) is read-only,
+  because pdf-lib can't rewrite encrypted files.
+
 ### Find and navigation
 
 - `view/text-index.js` — indexes each page's text in the background (yielding
@@ -302,6 +321,14 @@ it's skipped and so are its tests.
 
 - In Chromium, `localStorage` for `file://` pages can come back empty after a
   reload, so preferences are mirrored to IndexedDB and restored at startup.
+
+- Editing properties updates the PDF's Info dictionary. If a file also has
+  XMP metadata, that isn't rewritten, so some apps may still show the old
+  values.
+- Attachments panel lists document-level embedded files; files attached to
+  comments on a page (file-attachment annotations) aren't listed.
+- "Embedded subset" is recognised by the standard `ABCDEF+` name prefix; pdf-lib
+  doesn't use it, so its subsets show as "Embedded".
 
 ## Privacy
 

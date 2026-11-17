@@ -169,6 +169,13 @@ export class DocumentModel extends EventTarget {
     }
   }
 
+  /** Mark the document read-only (e.g. it turned out to be encrypted). */
+  setReadOnly(reason) {
+    if (this.readOnly === reason) return;
+    this.readOnly = reason;
+    this.emit('readonlychange');
+  }
+
   markSaved() {
     this.savedEntry = this.history.current;
     this.emit('dirtychange');

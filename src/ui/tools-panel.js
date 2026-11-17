@@ -69,7 +69,7 @@ export function createToolsPanel({ onTool, getState, setState, side }) {
           })),
         ),
       ),
-      groups.length ? null : h('p.muted.tools-none', t('tools.noMatch')),
+      ...(groups.length ? [] : [h('p.muted.tools-none', t('tools.noMatch'))]),
     );
   }
 

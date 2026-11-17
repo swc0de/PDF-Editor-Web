@@ -11,7 +11,7 @@ test('loads from file:// with the right title and no console errors', async ({ p
 });
 
 // Tools built so far; everything else must still say "Coming soon".
-const READY = ['read-mode', 'find', 'bookmarks', 'page-thumbnails', 'undo-history', 'organize-pages', 'rotate-pages', 'insert-pages', 'delete-pages', 'combine-files', 'split-document', 'extract-pages'];
+const READY = ['read-mode', 'find', 'bookmarks', 'page-thumbnails', 'undo-history', 'organize-pages', 'rotate-pages', 'insert-pages', 'delete-pages', 'combine-files', 'split-document', 'extract-pages', 'properties', 'attachments', 'layers'];
 
 test('tool registry holds the complete catalogue; unbuilt tools are "Coming soon"', async ({ page }) => {
   await openApp(page);
@@ -100,5 +100,26 @@ test('screenshots: home in light and dark', async ({ page }) => {
     await shot(page, `m0-home-${theme}`);
     await page.locator('.catalogue').scrollIntoViewIfNeeded();
     await shot(page, `m0-catalogue-${theme}`);
+  }
+});
+
+test('no stray "null"/"undefined" text anywhere in the UI', async ({ page }) => {
+  const strays = () => page.evaluate(() => {
+    const out = [];
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const s = walker.currentNode.textContent.trim();
+      if (s === 'null' || s === 'undefined' || s === 'NaN' || s.includes('[object ')) out.push(walker.currentNode.parentElement?.className || '?');
+    }
+    return out;
+  });
+  await openApp(page);
+  expect(await strays()).toEqual([]);
+  await page.setInputFiles('#file-input', (await import('./helpers.mjs')).fixture('attachment.pdf'));
+  await page.waitForSelector('.page[data-state="rendered"]');
+  for (const panel of ['Pages', 'Bookmarks', 'Layers', 'Fields', 'Comments', 'Attachments', 'Document Properties', 'Undo History']) {
+    await page.locator('.rail').getByRole('button', { name: panel, exact: true }).click();
+    await page.waitForTimeout(150);
+    expect(await strays(), panel).toEqual([]);
   }
 });

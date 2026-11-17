@@ -13,6 +13,8 @@ import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import fontkit from '@pdf-lib/fontkit';
+import { readFileSync } from 'node:fs';
 import {
   PDFDocument,
   PDFName,
@@ -480,6 +482,20 @@ async function large() {
   await save(doc, 'large.pdf', { landscapeEvery: 50 });
 }
 
+// ---------------------------------------------------------------- fonts.pdf
+// An embedded (subset) TrueType font next to a non-embedded standard font.
+// DM Mono is under the SIL Open Font License (tests/assets/DMMono-OFL.txt).
+async function fonts() {
+  const doc = await newDoc('Fonts sample');
+  doc.registerFontkit(fontkit);
+  const mono = await doc.embedFont(readFileSync(join(DIR, '../assets/DMMono-Regular.ttf')), { subset: true });
+  const helv = await doc.embedFont(StandardFonts.Helvetica);
+  const page = doc.addPage(SIZES.a4);
+  page.drawText('Embedded subset font: DM Mono', { x: 56, y: 760, size: 18, font: mono });
+  page.drawText('Standard font, not embedded: Helvetica', { x: 56, y: 720, size: 18, font: helv });
+  await save(doc, 'fonts.pdf', { fonts: [{ name: 'DMMono-Regular', embedded: true, subset: true }, { name: 'Helvetica', embedded: false }] });
+}
+
 // ------------------------------------------------------------ encrypted.pdf
 async function encrypted() {
   const doc = await newDoc('Password-protected document');
@@ -506,6 +522,32 @@ async function encrypted() {
       tool = null;
     }
   }
+  // restricted.pdf: no user password (opens normally) but an owner password
+  // that forbids printing and changes.
+  const restrictedPath = join(DIR, 'restricted.pdf');
+  let restricted = false;
+  try {
+    execFileSync('qpdf', ['--encrypt', '', OWNER_PASSWORD, '256', '--print=none', '--modify=none', '--', plainPath, restrictedPath], { stdio: 'pipe' });
+    restricted = true;
+  } catch {
+    try {
+      execFileSync('python3', [
+        '-c',
+        'import sys, pikepdf\n' +
+          'pdf = pikepdf.open(sys.argv[1])\n' +
+          'perm = pikepdf.Permissions(print_lowres=False, print_highres=False, modify_other=False, modify_assembly=False, modify_annotation=False, modify_form=False)\n' +
+          'pdf.save(sys.argv[2], encryption=pikepdf.Encryption(user="", owner=sys.argv[3], R=6, allow=perm))',
+        plainPath, restrictedPath, OWNER_PASSWORD,
+      ], { stdio: 'pipe' });
+      restricted = true;
+    } catch {
+      restricted = false;
+    }
+  }
+  if (restricted) {
+    manifest['restricted.pdf'] = { pageCount: 2, ownerPassword: OWNER_PASSWORD, denied: ['print', 'modify'] };
+    console.log(`  ${'restricted.pdf'.padEnd(22)}   2 pages  (owner password, no print/modify)`);
+  }
   await rm(plainPath, { force: true });
   if (tool) {
     manifest['encrypted.pdf'] = { pageCount: 2, password: PASSWORD, ownerPassword: OWNER_PASSWORD, encryptedWith: tool };
@@ -530,5 +572,6 @@ await layers();
 await corrupted();
 await encrypted();
 await large();
+await fonts();
 await writeFile(join(DIR, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 console.log(`✓ ${Object.keys(manifest).length} fixtures, manifest.json written`);

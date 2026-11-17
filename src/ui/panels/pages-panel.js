@@ -167,6 +167,8 @@ export function registerPagesPanel() {
         applySize();
       };
       tab.addEventListener('docchange', onDocChange);
+      const onLayers = () => items.forEach(reset);
+      viewer.addEventListener('layerschange', onLayers);
       viewer.addEventListener('pagechange', onPage);
       viewer.addEventListener('layoutchange', onLayout);
       viewer.addEventListener('sizesloaded', onSizes);
@@ -182,6 +184,7 @@ export function registerPagesPanel() {
         viewer.removeEventListener('layoutchange', onLayout);
         viewer.removeEventListener('sizesloaded', onSizes);
         tab.removeEventListener('docchange', onDocChange);
+        viewer.removeEventListener('layerschange', onLayers);
       };
     },
   });

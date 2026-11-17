@@ -103,3 +103,22 @@ test('ops in sequence on one document see the current pages (pdf-lib cache)', as
   const { out } = await headings(await doc.save());
   expect(out.slice(0, 5)).toEqual(['Page 1 of 12', 'Page 1 of 12', 'Page 3 of 12', 'Page 3 of 12', 'Page 5 of 12']);
 });
+
+test('metadata, attachments and font inspection ops', async () => {
+  const doc = await PDFLib.PDFDocument.load(fx('attachment.pdf'), { updateMetadata: false });
+  OPS.setMetadata(PDFLib, doc, { title: 'New title', author: 'Ada', subject: 'S', keywords: 'one, two;three' });
+  await OPS.addAttachment(PDFLib, doc, { name: 'extra.txt', bytes: new TextEncoder().encode('hi'), mimeType: 'text/plain' });
+  OPS.removeAttachment(PDFLib, doc, { name: 'notes.txt' });
+  const saved = await doc.save();
+  const pdf = await pdfjs.getDocument({ data: new Uint8Array(saved), verbosity: 0 }).promise;
+  const info = (await pdf.getMetadata()).info;
+  expect([info.Title, info.Author, info.Subject, info.Keywords]).toEqual(['New title', 'Ada', 'S', 'one two three']);
+  const names = [...(await pdf.getAttachments()).values()].map((a) => a.filename).sort();
+  expect(names).toEqual(['extra.txt', 'inner.pdf']);
+  expect(() => OPS.removeAttachment(PDFLib, doc, { name: 'nope' })).toThrow(/No attachment/);
+
+  const fonts = OPS.inspectFonts(PDFLib, await PDFLib.PDFDocument.load(fx('fonts.pdf'))).value.fonts;
+  // pdf-lib names its subsets "DMMono-Regular-<n>" (no "ABCDEF+" subset prefix).
+  expect(fonts.map((f) => [f.name.replace(/-\d+$/, ''), f.embedded])).toEqual([['DMMono-Regular', true], ['Helvetica', false]]);
+  expect(fonts[0].type).toBe('Type0');
+});

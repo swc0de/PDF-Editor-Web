@@ -321,7 +321,7 @@ test.describe('read-only documents', () => {
     await expect(await menuItem(page, 'Edit', 'Rotate current page 90°')).toHaveAttribute('aria-disabled', 'true');
     await page.keyboard.press('Escape');
     await page.evaluate(() => window.pdfEditor.app.rotateCurrentPage(90));
-    await expect(page.locator('.toast')).toContainText('Password-protected PDFs can’t be edited yet');
+    await expect(page.locator('.toast')).toContainText('Protected (encrypted) PDFs can’t be edited yet');
     await expect(dirtyDot(page)).toHaveCount(0);
   });
 });

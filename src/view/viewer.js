@@ -58,6 +58,11 @@ export class Viewer extends EventTarget {
     this.sizes = new Array(this.numPages).fill(DEFAULT_SIZE);
     this.labels = null;
     this.history = new NavHistory();
+    // Optional content (layers): the pdf.js config used for every render, the
+    // user's visibility overrides (kept across edits) and a version counter.
+    this.layerOverrides = new Map();
+    this.ocVersion = 0;
+    this.ocConfigPromise = this.loadOcConfig();
 
     this.content = h('div.viewer-content');
     this.container = h(
@@ -88,12 +93,53 @@ export class Viewer extends EventTarget {
       (_, i) => new PageView(i, {
         pdfjs: this.pdfjs,
         getPage: (idx) => this.getPage(idx),
+        getOcConfig: () => this.ocConfigPromise,
         onTextLayer: (view) => this.emit('textlayer', { index: view.index }),
       }),
     );
     const frag = document.createDocumentFragment();
     for (const v of this.views) frag.append(v.el);
     this.content.append(frag);
+  }
+
+  /** pdf.js optional-content config for the current document, with the user's overrides applied. */
+  loadOcConfig() {
+    const p = this.doc.getOptionalContentConfig({ intent: 'display' }).then((config) => {
+      for (const [id, visible] of this.layerOverrides) {
+        try {
+          if (config.getGroup(id)) config.setVisibility(id, visible);
+        } catch {
+          /* the group no longer exists */
+        }
+      }
+      return config;
+    }).catch(() => null); // null → render with the document's defaults
+    return p;
+  }
+
+  /** Show or hide a layer (view state, not an edit) and redraw. */
+  async setLayerVisibility(id, visible) {
+    const config = await this.ocConfigPromise;
+    if (!config) return;
+    config.setVisibility(id, visible);
+    this.layerOverrides.set(id, visible);
+    this.redrawAll();
+  }
+
+  /** Forget the user's layer choices: back to the document's defaults. */
+  async resetLayers() {
+    this.layerOverrides.clear();
+    this.ocConfigPromise = this.loadOcConfig();
+    await this.ocConfigPromise;
+    this.redrawAll();
+  }
+
+  /** Re-render every page (keeping the old canvases until the new ones are ready). */
+  redrawAll() {
+    this.ocVersion++;
+    for (const v of this.views) v.invalidate();
+    this.emit('layerschange');
+    this.update();
   }
 
   async loadLabels() {
@@ -117,6 +163,7 @@ export class Viewer extends EventTarget {
     const anchor = this.captureAnchor(0, 0);
     this.doc = doc;
     this.pagePromises.clear();
+    this.ocConfigPromise = this.loadOcConfig();
     const all = structural || doc.numPages !== this.numPages;
     if (all) {
       for (const v of this.views) {

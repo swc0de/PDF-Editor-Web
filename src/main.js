@@ -11,6 +11,10 @@ import { registerHistoryPanel } from './ui/panels/history-panel.js';
 import { registerHistoryTool } from './tools/history.js';
 import { registerOrganizeTools } from './tools/organize.js';
 import { registerCombineTools } from './tools/combine.js';
+import { registerInfoTools } from './tools/info.js';
+import { registerLayersPanel } from './ui/panels/layers-panel.js';
+import { registerAttachmentsPanel } from './ui/panels/attachments-panel.js';
+import { registerPropertiesPanel } from './ui/panels/properties-panel.js';
 import * as registry from './tools/registry.js';
 import * as commands from './ui/commands.js';
 import * as libs from './core/libs.js';
@@ -32,6 +36,10 @@ async function start() {
   registerHistoryTool();
   registerOrganizeTools();
   registerCombineTools();
+  registerInfoTools();
+  registerLayersPanel();
+  registerAttachmentsPanel();
+  registerPropertiesPanel();
 
   const root = document.getElementById('app');
   const app = new App(root);

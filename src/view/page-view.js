@@ -23,10 +23,11 @@ export class PageView {
    * @param {object} deps.pdfjs           the pdf.js module
    * @param {(i:number) => Promise<object>} deps.getPage
    */
-  constructor(index, { pdfjs, getPage, onTextLayer }) {
+  constructor(index, { pdfjs, getPage, getOcConfig, onTextLayer }) {
     this.index = index;
     this.pdfjs = pdfjs;
     this.getPage = getPage;
+    this.getOcConfig = getOcConfig;
     this.onTextLayer = onTextLayer;
     this.textLayerObj = null; // the pdf.js TextLayer (textDivs ↔ text items)
     this.proxy = null;
@@ -189,11 +190,14 @@ export class PageView {
   }
 
   async draw(canvas, viewport, transform, stale) {
+    const oc = (await this.getOcConfig?.()) ?? null;
+    if (stale()) return false;
     this.task = this.proxy.render({
       canvas,
       viewport,
       transform,
       annotationMode: this.pdfjs.AnnotationMode.ENABLE_FORMS,
+      optionalContentConfigPromise: oc ? Promise.resolve(oc) : undefined,
     });
     try {
       await this.task.promise;
@@ -326,6 +330,13 @@ export class PageView {
     for (const canvas of this.tiles.values()) releaseCanvas(canvas);
     this.tiles.clear();
     this.tileKey = null;
+  }
+
+  /** Draw again on the next update (e.g. layers changed); the old canvas stays until then. */
+  invalidate() {
+    this.cancel();
+    this.canvasKey = null;
+    this.clearTiles();
   }
 
   /** Forget everything about this page (its content changed). */

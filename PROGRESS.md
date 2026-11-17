@@ -11,7 +11,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M4 | Document model, undo/redo, save, autosave | approved |
 | M5 | Organize pages | approved |
 | M6 | Combine and split | approved |
-| M7 | Properties, attachments, layers | in progress |
+| M7 | Properties, attachments, layers | awaiting approval |
 | M8 | Comments and annotations | todo |
 | M9 | Forms and signatures | todo |
 | M10 | Protect, redact, print | todo |
@@ -176,3 +176,21 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   pages (`/PDFEditorSrcPage`), re-points links to the placed copies (or drops them) and deletes the clones.
 - **Tools ready:** combine-files, split-document, extract-pages.
 - **Tests:** `combine.spec.mjs` (10), `tests/unit/jobs.spec.mjs` (5). Total 111.
+
+### M7 — Properties, attachments, layers (awaiting approval)
+- **Panels:** `ui/panels/properties-panel.js` (form → `setMetadata` op; facts from pdf.js getMetadata /
+  getPermissions (a Set of allowed flags in pdf.js 6) / getMarkInfo / getFieldObjects / getAttachments; fonts via
+  `model.query('inspectFonts')`), `ui/panels/attachments-panel.js` (pdf.js 6: `getAttachments()` = metadata only,
+  bytes via `getAttachmentContent(id)`; ops addAttachment/removeAttachment by name-tree key), `ui/panels/layers-panel.js`.
+  Tools ready: properties, attachments, layers (`tools/info.js`).
+- **Ops:** `core/ops/info-ops.js` — setMetadata, addAttachment (pdf-lib attach), removeAttachment (name tree + catalog /AF,
+  deletes filespec + stream), inspectFonts (read-only; Resources incl. form XObjects; Type0 descendant descriptor).
+- **Layers:** Viewer `ocConfigPromise` (pdf.js OptionalContentConfig, user overrides in `layerOverrides` re-applied after
+  every replaceDocument), `setLayerVisibility`, `resetLayers`, `redrawAll` (bumps `ocVersion`, `PageView.invalidate()`
+  keeps old canvas until redraw). PageView awaits the config and passes it only when non-null. Thumbnail key includes ocVersion.
+- **Read-only:** DocTab.init marks any doc with `info.EncryptFilterName` read-only (`model.setReadOnly('encrypted')`).
+- **Fixtures:** `fonts.pdf` (DM Mono subset via @pdf-lib/fontkit, devDependency; font + OFL in tests/assets/),
+  `restricted.pdf` (owner password only: no print/modify; made with qpdf or pikepdf).
+- **Fixed:** stray "null" text at the end of the tools list (replaceChildren(null)); new smoke test scans for
+  "null"/"undefined"/"[object" text across all panels.
+- **Tests:** `info.spec.mjs` (9) + smoke stray-text test. Total 122.

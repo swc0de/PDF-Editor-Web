@@ -209,6 +209,14 @@
     "opens": false,
     "truncatedFrom": "multipage.pdf"
   },
+  "restricted.pdf": {
+    "pageCount": 2,
+    "ownerPassword": "owner-secret",
+    "denied": [
+      "print",
+      "modify"
+    ]
+  },
   "encrypted.pdf": {
     "pageCount": 2,
     "password": "secret",
@@ -218,5 +226,19 @@
   "large.pdf": {
     "pageCount": 500,
     "landscapeEvery": 50
+  },
+  "fonts.pdf": {
+    "pageCount": 1,
+    "fonts": [
+      {
+        "name": "DMMono-Regular",
+        "embedded": true,
+        "subset": true
+      },
+      {
+        "name": "Helvetica",
+        "embedded": false
+      }
+    ]
   }
 }

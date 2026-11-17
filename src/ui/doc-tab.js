@@ -79,6 +79,10 @@ export class DocTab extends EventTarget {
   }
 
   async init() {
+    // Any encryption (even permissions-only, no password) means pdf-lib can't edit it.
+    this.pdf.getMetadata().then((m) => {
+      if (m?.info?.EncryptFilterName) this.model.setReadOnly('encrypted');
+    }, () => {});
     await this.viewer.init();
     const v = this.initialView;
     if (v.anchor) this.viewer.restoreAnchor(v.anchor);
