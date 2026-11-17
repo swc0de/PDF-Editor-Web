@@ -10,6 +10,7 @@ import { registerBookmarksPanel } from './ui/panels/bookmarks-panel.js';
 import { registerHistoryPanel } from './ui/panels/history-panel.js';
 import { registerHistoryTool } from './tools/history.js';
 import { registerOrganizeTools } from './tools/organize.js';
+import { registerCombineTools } from './tools/combine.js';
 import * as registry from './tools/registry.js';
 import * as commands from './ui/commands.js';
 import * as libs from './core/libs.js';
@@ -30,6 +31,7 @@ async function start() {
   registerHistoryPanel();
   registerHistoryTool();
   registerOrganizeTools();
+  registerCombineTools();
 
   const root = document.getElementById('app');
   const app = new App(root);

@@ -184,6 +184,30 @@ themselves, so most links stay intact):
 Page labels are stored as ranges by position, so after reordering they label
 positions, not the pages they used to.
 
+### Combine, split, extract (`src/ui/combine/`, `src/core/ops/jobs.js`)
+
+These run as **jobs** in their own disposable worker (`core/jobs.js`): it
+reports progress as it goes, and *Cancel* simply terminates it — instantly,
+without touching the editing worker. The job worker bundles pdf-lib and fflate
+(for the .zip). Shared, serialisable helpers in `core/ops/pdf-helpers.js` read
+and write outlines, re-point links and carry form fields.
+
+- **Combine:** files from disk or open tabs (including their unsaved edits),
+  reorder by dragging or with ↑/↓, a page range per file, and *Add a bookmark
+  for each file* (each file's own bookmarks nested beneath it; without the
+  option they're kept at the top level). Opens in a new, unsaved tab.
+- **Extract pages:** a range (`1-3, 7, 10-`) or the organizer's selection →
+  new tab.
+- **Split:** every N pages, before chosen pages, or at each top-level bookmark.
+  Parts are named `name-01-pages-1-5.pdf` / `name-02-part-one.pdf` and
+  downloaded together as `name-split.zip`.
+
+**Carried over:** form fields (clashing names get `_2`, `_3`…), links between
+pages that are included, the bookmarks of included pages, and the first file's
+title/author/subject/keywords/language. **Not carried over:** page labels,
+attachments and named destinations; links to pages that weren't included lose
+their target.
+
 ### Find and navigation
 
 - `view/text-index.js` — indexes each page's text in the background (yielding

@@ -15,7 +15,6 @@ import { toast } from '../toast.js';
 import { getPref, setPref } from '../../core/prefs.js';
 import { rotatedSize } from '../../view/layout.js';
 import { moveSelection, nudgeSelection } from '../../core/page-order.js';
-import { formatPageRange } from '../../core/page-range.js';
 import { getThumb } from '../thumbnails.js';
 import { openInsertDialog } from './insert-dialog.js';
 
@@ -492,15 +491,7 @@ export class Organizer {
 
   async extract() {
     const pages = this.selected();
-    if (!pages.length) return;
-    try {
-      const { bytes } = await this.tab.model.query('exportPages', { pages });
-      const base = this.tab.name.replace(/\.pdf$/i, '');
-      const name = `${base} (${tn('organize.extractName', pages.length, { range: formatPageRange(pages) })}).pdf`;
-      await this.app.openBytes(bytes, name, { clean: false, openLabel: t('history.extracted', { name: this.tab.name }) });
-    } catch (err) {
-      toast(t('edit.failed', { message: err.message }), { kind: 'error' });
-    }
+    if (pages.length) await this.app.extractPages(this.tab, pages);
   }
 
   openPage(i) {

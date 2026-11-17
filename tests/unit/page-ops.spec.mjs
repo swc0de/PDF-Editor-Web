@@ -83,14 +83,6 @@ test('insertBlank and insertFromPdf', async () => {
   expect(i.out.slice(11)).toEqual(['Page 12 of 12', 'Introduction', 'Chapter 1']);
 });
 
-test('exportPages makes a new document without touching the source', async () => {
-  const doc = await PDFLib.PDFDocument.load(fx('multipage.pdf'), { updateMetadata: false });
-  const { value } = await OPS.exportPages(PDFLib, doc, { pages: [4, 1] });
-  const { out } = await headings(value.bytes);
-  expect(out).toEqual(['Page 5 of 12', 'Page 2 of 12']);
-  expect(doc.getPageCount()).toBe(12);
-});
-
 test('page ranges', () => {
   expect(parsePageRange('1-3, 7, 10-', 12)).toEqual({ pages: [0, 1, 2, 6, 9, 10, 11] });
   expect(parsePageRange('', 3)).toEqual({ pages: [0, 1, 2] });

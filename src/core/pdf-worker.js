@@ -3,9 +3,7 @@
 // (module workers from Blob URLs don't work on file:// pages). pdf-lib is
 // downloaded on the main thread, so it's fetched once and failures surface
 // here.
-import { libUrl } from './libs.config.js';
-import { workerMain } from './worker/worker-main.js';
-import { opsSource } from './ops/index.js';
+import { workerUrl } from './worker-source.js';
 
 let workerPromise = null;
 let seq = 0;
@@ -19,11 +17,7 @@ export class WorkerOpError extends Error {
 }
 
 async function startWorker() {
-  const res = await fetch(libUrl('pdfLib', 'umd'));
-  if (!res.ok) throw new Error(`pdf-lib download failed (${res.status})`);
-  const lib = await res.text();
-  const source = `${lib}\n;(${workerMain.toString()})(${opsSource()});\n`;
-  const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+  const url = await workerUrl();
   const worker = new Worker(url, { name: 'pdf-lib' });
   worker.onmessage = (e) => {
     const p = pending.get(e.data.id);

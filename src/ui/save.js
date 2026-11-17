@@ -30,8 +30,8 @@ async function writeToHandle(handle, bytes) {
   await writable.close();
 }
 
-export function downloadBytes(bytes, name) {
-  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+export function downloadBytes(bytes, name, type = 'application/pdf') {
+  const url = URL.createObjectURL(new Blob([bytes], { type }));
   const a = document.createElement('a');
   a.href = url;
   a.download = name;

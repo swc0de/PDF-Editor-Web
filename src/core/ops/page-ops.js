@@ -184,17 +184,3 @@ export function reorderPages(PDFLib, doc, args) {
   order.forEach((old, k) => doc.insertPage(k, pages[old]));
   return { affected: null };
 }
-
-/** Read-only: a new PDF made of the given pages (for "Extract to new tab"). */
-export async function exportPages(PDFLib, doc, args) {
-  const out = await PDFLib.PDFDocument.create({ updateMetadata: false });
-  const copies = await out.copyPages(doc, args.pages);
-  copies.forEach((p) => out.addPage(p));
-  const title = doc.getTitle();
-  if (title) out.setTitle(title);
-  const author = doc.getAuthor();
-  if (author) out.setAuthor(author);
-  out.setProducer('PDF Editor');
-  const bytes = await out.save();
-  return { value: { bytes } };
-}

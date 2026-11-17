@@ -41,6 +41,7 @@ export const LIBS = {
     homepage: 'https://github.com/101arrowz/fflate',
     files: {
       main: 'esm/browser.js',
+      umd: 'umd/index.js',
     },
   },
   tesseract: {

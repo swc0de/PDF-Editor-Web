@@ -10,7 +10,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M3 | Find and navigation | approved |
 | M4 | Document model, undo/redo, save, autosave | approved |
 | M5 | Organize pages | approved |
-| M6 | Combine and split | in progress |
+| M6 | Combine and split | awaiting approval |
 | M7 | Properties, attachments, layers | todo |
 | M8 | Comments and annotations | todo |
 | M9 | Forms and signatures | todo |
@@ -163,3 +163,16 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   own project depending on `chromium` (runs alone afterwards); `--repeat-each` only repeats it, so stress with
   `npx playwright test --project chromium --repeat-each 3 --workers 6`. `window.pdfEditor.storage.clearAll()`
   resets storage in tests (deleteDatabase is blocked while open). Total 97 tests.
+
+### M6 — Combine and split (awaiting approval)
+- **Jobs:** `core/jobs.js` `runJob(job, args, {onProgress, transfer})` → `{promise, cancel}`; a fresh worker per job
+  (built by `core/worker-source.js`, which also builds the editing worker: pdf-lib UMD [+ fflate UMD] + worker-main),
+  cancel = terminate. Worker-main handles `type:'job'` with ctx `{helpers, progress, zip}`; `workerMain(OPS, HELPERS, JOBS)`.
+- **Code:** `core/ops/jobs.js` (combine — also used for extract —, split), `core/ops/pdf-helpers.js` (readOutline,
+  mapOutline, writeOutline, carryFields, copyMeta, appendPages, fixLinks), `core/split-plan.js` (planSplit, slug),
+  `ui/combine/{combine,split,extract}-dialog.js`, `ui/combine/job-progress.js`, `createModal()` in ui/dialog.js,
+  `inspectPdf()` in view/pdfjs.js. `app.extractPages(tab, pages)` (organizer's Extract uses it; `exportPages` op removed).
+- **pdf-lib gotcha:** `copyPages` gives each page that a *link* points to its own detached clone → `fixLinks` tags source
+  pages (`/PDFEditorSrcPage`), re-points links to the placed copies (or drops them) and deletes the clones.
+- **Tools ready:** combine-files, split-document, extract-pages.
+- **Tests:** `combine.spec.mjs` (10), `tests/unit/jobs.spec.mjs` (5). Total 111.

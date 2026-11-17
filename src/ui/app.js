@@ -3,7 +3,7 @@
 // Read mode and full screen.
 import { h } from './dom.js';
 import { icon } from './icons.js';
-import { t } from '../i18n/index.js';
+import { t, tn } from '../i18n/index.js';
 import { createShell } from './shell.js';
 import { createHome } from './home.js';
 import { createTabStrip } from './tabs.js';
@@ -24,6 +24,11 @@ import { DocTab } from './doc-tab.js';
 import { createFindBar } from './find-bar.js';
 import { FindController } from '../view/find-controller.js';
 import { Organizer } from './organize/organizer.js';
+import { openCombineDialog } from './combine/combine-dialog.js';
+import { openSplitDialog } from './combine/split-dialog.js';
+import { openExtractDialog } from './combine/extract-dialog.js';
+import { runJob } from '../core/jobs.js';
+import { formatPageRange } from '../core/page-range.js';
 import { getPdfjs, openPdf, isPasswordCancel } from '../view/pdfjs.js';
 import { runTool, getTool, listTools } from '../tools/registry.js';
 import { getSetting, getArrangement, saveArrangement, resetArrangement, onSettingsChange } from '../core/settings.js';
@@ -628,6 +633,58 @@ export class App extends EventTarget {
 
   listRecoverable() {
     return listAutosaves();
+  }
+
+  // ----------------------------------------------------- combine & split
+
+  openCombine() {
+    return openCombineDialog(this);
+  }
+
+  /** A tab whose pages pdf-lib can read (not password-protected), or null + a message. */
+  editableTab() {
+    const tab = this.activeTab;
+    if (!tab) {
+      toast(t('combine.needsDocument'));
+      return null;
+    }
+    if (tab.model.readOnly) {
+      toast(t(`edit.readOnly.${tab.model.readOnly}`), { kind: 'error' });
+      return null;
+    }
+    return tab;
+  }
+
+  openSplit() {
+    const tab = this.editableTab();
+    return tab ? openSplitDialog(this, tab) : null;
+  }
+
+  openExtract() {
+    const tab = this.editableTab();
+    if (!tab) return null;
+    const org = tab.organizer;
+    const selection = org?.isOpen && org.selection.size ? [...org.selection].sort((a, b) => a - b) : [tab.viewer.current];
+    return openExtractDialog(this, tab, selection);
+  }
+
+  /**
+   * Copy pages (with their links, form fields and bookmarks) into a new,
+   * unsaved tab. Returns true on success.
+   */
+  async extractPages(tab, pages) {
+    const bytes = tab.bytes.slice();
+    const job = runJob('combine', { files: [{ name: tab.name, bytes, pages }], bookmarks: false }, { transfer: [bytes.buffer] });
+    try {
+      const result = await job.promise;
+      const base = tab.name.replace(/\.pdf$/i, '');
+      const name = `${base} (${tn('organize.extractName', pages.length, { range: formatPageRange(pages) })}).pdf`;
+      await this.openBytes(result.bytes, name, { clean: false, openLabel: t('history.extracted', { name: tab.name }) });
+      return true;
+    } catch (err) {
+      toast(t('edit.failed', { message: err.message }), { kind: 'error' });
+      return false;
+    }
   }
 
   // ---------------------------------------------------------- organize

@@ -101,3 +101,35 @@ export function promptPassword({ filename, retry }) {
     onSubmit: () => input.value,
   });
 }
+
+/**
+ * A modal with custom content that the caller controls (for dialogs that stay
+ * open while work runs, like Combine). Esc / the close button call onCancel.
+ * @returns {{ dialog: HTMLDialogElement, close: () => void, setBusy: (b: boolean) => void }}
+ */
+export function createModal({ title, className = '', body, footer, onCancel }) {
+  const id = `dialog-${++counter}`;
+  const dialog = h(`dialog.dialog${className ? '.' + className : ''}`, { 'aria-labelledby': `${id}-title` },
+    h('div.dialog-form',
+      h('h2.dialog-title', { id: `${id}-title` }, title),
+      h('div.dialog-body', body),
+      h('div.dialog-actions', footer)));
+  let busy = false;
+  dialog.addEventListener('cancel', (e) => {
+    e.preventDefault();
+    if (!busy) onCancel?.();
+  });
+  document.body.append(dialog);
+  dialog.showModal();
+  return {
+    dialog,
+    close() {
+      if (dialog.open) dialog.close();
+      dialog.remove();
+    },
+    setBusy(b) {
+      busy = b;
+      dialog.dataset.busy = String(b);
+    },
+  };
+}

@@ -127,6 +127,35 @@ export async function openPdf(bytes, { askPassword, onProgress, password: initia
   }
 }
 
+/**
+ * Quick look at a PDF: page count and whether pdf-lib will be able to edit it.
+ * Throws an Error named 'PasswordProtected' or pdf.js's 'InvalidPDFException'.
+ */
+export async function inspectPdf(bytes) {
+  const pdfjs = await getPdfjs();
+  await pdfjsIdle();
+  const task = pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, verbosity: 0, useWorkerFetch: false });
+  let needsPassword = false;
+  task.onPassword = () => {
+    needsPassword = true;
+    destroyPdf(task);
+  };
+  try {
+    const doc = await task.promise;
+    const pageCount = doc.numPages;
+    await destroyPdf(task);
+    return { pageCount };
+  } catch (err) {
+    if (needsPassword) {
+      const e = new Error('Password-protected PDF');
+      e.name = 'PasswordProtected';
+      throw e;
+    }
+    destroyPdf(task);
+    throw err;
+  }
+}
+
 /** Is this error "the user typed nothing and cancelled"? */
 export function isPasswordCancel(err) {
   return err instanceof PasswordCancelled;
