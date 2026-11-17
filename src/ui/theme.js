@@ -1,7 +1,7 @@
 // Light/dark theme. First run follows prefers-color-scheme; an explicit
 // choice is remembered. (index.html applies the saved theme before the app
 // loads, so there is no flash.)
-import { getPref, setPref } from '../core/prefs.js';
+import { getPref, setPref, removePref } from '../core/prefs.js';
 
 const listeners = new Set();
 
@@ -24,6 +24,20 @@ export function initTheme() {
 export function setTheme(theme) {
   setPref('theme', theme);
   applyTheme(theme);
+}
+
+/** 'system' | 'light' | 'dark' */
+export function themePreference() {
+  return getPref('theme') ?? 'system';
+}
+
+export function setThemePreference(pref) {
+  if (pref === 'system') {
+    removePref('theme');
+    applyTheme(systemTheme());
+  } else {
+    setTheme(pref);
+  }
 }
 
 export function toggleTheme() {

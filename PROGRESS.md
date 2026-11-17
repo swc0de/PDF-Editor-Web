@@ -6,7 +6,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 |---|---|---|
 | M0 | Scaffold, build and test harness | approved |
 | M1 | Core viewer | approved |
-| M2 | App shell, tabs, home screen | in progress |
+| M2 | App shell, tabs, home screen | awaiting approval |
 | M3 | Find and navigation | todo |
 | M4 | Document model, undo/redo, save, autosave | todo |
 | M5 | Organize pages | todo |
@@ -76,3 +76,25 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   Chromium → heartbeat-timer stall detector with a self-check. Ctrl+O test asserts the picker input
   is clicked (Playwright filechooser event races under parallel load).
 - **Known limitations:** see README. No tabs/menus yet (M2). Page labels in M3.
+
+### M2 — App shell, tabs, home screen (awaiting approval)
+- **Structure:** `ui/app.js` (controller), `ui/doc-tab.js` (per-document tab), `ui/tabs.js` (tablist),
+  `ui/menubar.js` + `ui/app-menus.js`, `ui/app-commands.js` (all commands), `ui/palette.js` + `ui/fuzzy.js`,
+  `ui/tools-panel.js`, `ui/side-panel.js` + `ui/panels.js` (panel registry: `implementPanel(id, {render})`
+  — M3 Pages/Bookmarks, M7 Layers/Attachments/Properties, M8 Comments, M9 Fields), `ui/splitter.js`,
+  `ui/preferences.js`, `ui/about.js` (About + Keyboard shortcuts), `core/settings.js`, `core/idb.js`
+  (stores: recents, recentFiles, autosave, signatures — created up front), `core/recents.js`.
+- **Tabs:** hidden tabs keep their viewer (display:none); `Viewer.isHidden` guards update/resize.
+  Selection saved/restored on switch. Opening identical bytes (SHA-256 content id) switches to the
+  existing tab. Closed-tab stack (10) keeps bytes + password + view state for reopen.
+  `DocTab.setDirty()` drives the dot; closing a dirty tab asks (M4 will add Save to that dialog).
+- **Commands:** shortcuts in text inputs only fire for Mod/Ctrl/Alt/function-key combos.
+  `hidden: true` keeps a command out of the palette. Palette ids: commands by id, tools as `tool:<id>`.
+  Recent palette picks in localStorage `pdfeditor.palette.recent`.
+- **Settings keys:** `pdfeditor.setting.{toolsSide,author,defaultZoom,defaultLayout}`, `pdfeditor.theme`
+  (absent = follow system), `pdfeditor.arrangement` ({tools:{visible,width}, side:{visible,width,panel}}).
+- **Tests:** `shell.spec.mjs` (15): tabs (state per tab, close/others/reopen/Ctrl+W, dirty guard,
+  dedupe, arrows, wheel scroll), panels (F4/Shift+F4, rail, empty states, drag + keyboard resize,
+  persistence, reset), palette (fuzzy/id/arrows/Enter/recent), preferences persistence, recents
+  (reload, open, remove, clear), menu keyboard nav, About/shortcuts. Total suite: 51.
+- **Known limits:** Chrome reserves Ctrl+W / Ctrl+Shift+T / Ctrl+PageUp/Down (documented in README).

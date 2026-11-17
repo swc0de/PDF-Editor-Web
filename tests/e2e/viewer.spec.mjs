@@ -1,6 +1,6 @@
 import { test, expect, openApp, openFixture, viewerState, manifest, fixture, shot } from './helpers.mjs';
 
-const pageEl = (page, n) => page.locator(`.page[data-page-number="${n}"]`);
+const pageEl = (page, n) => page.locator(`.viewer-host:not([hidden]) .page[data-page-number="${n}"]`);
 
 /** Fraction of sampled canvas pixels that aren't white (proves something was drawn). */
 async function inkRatio(page, n) {
@@ -33,7 +33,7 @@ test.describe('opening and rendering', () => {
     await expect(page.locator('.page')).toHaveCount(12);
     await expect(page.locator('.statusbar .page-input')).toHaveValue('1');
     await expect(page.locator('.statusbar .page-total')).toHaveText('of 12');
-    await expect(page.locator('.doc-name')).toHaveText('multipage.pdf');
+    await expect(page.locator('.tab-item.active .tab-name')).toHaveText('multipage.pdf');
     await expect(page).toHaveTitle('multipage.pdf — PDF Editor');
     expect(await inkRatio(page, 1)).toBeGreaterThan(0.002);
 
@@ -350,7 +350,7 @@ test.describe('opening', () => {
       fire('drop');
     }, bytes);
     await waitRendered(page, 1);
-    await expect(page.locator('.doc-name')).toHaveText('dropped.pdf');
+    await expect(page.locator('.tab-item.active .tab-name')).toHaveText('dropped.pdf');
     await expect(page.locator('.drop-overlay')).toBeHidden();
   });
 
@@ -371,7 +371,7 @@ test.describe('opening', () => {
     await expect.poll(() => page.evaluate(() => window.__pickerOpened)).toBe(2);
     await openFixture(page, 'multipage.pdf');
     await waitRendered(page, 1);
-    await page.getByRole('button', { name: 'Close document' }).click();
+    await page.getByRole('button', { name: 'Close multipage.pdf' }).click();
     await expect(page.locator('#home')).toBeVisible();
     await expect(page.locator('.statusbar')).toHaveCount(0);
     await expect(page).toHaveTitle('PDF Editor');

@@ -55,7 +55,7 @@ export function handleShortcut(event) {
     const hit = list.find((s) => matchShortcut(event, s));
     if (!hit) continue;
     // In text fields only modifier/function-key shortcuts apply.
-    if (editable && !/Mod|Ctrl|Alt|^F\d+$/.test(hit)) continue;
+    if (editable && !/Mod|Ctrl|Alt|(^|\+)F\d+$/.test(hit)) continue;
     if (!c.enabled()) continue;
     event.preventDefault();
     c.run();

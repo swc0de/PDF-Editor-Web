@@ -275,8 +275,13 @@ export class Viewer extends EventTarget {
     });
   }
 
+  /** Hidden tabs (display:none) have no size: don't lay out or render. */
+  get isHidden() {
+    return this.container.clientWidth === 0 && this.container.clientHeight === 0;
+  }
+
   handleResize() {
-    if (!this.layout || this.destroyed) return;
+    if (!this.layout || this.destroyed || this.isHidden) return;
     const anchor = this.captureAnchor(0, 0);
     if (ZOOM_MODES.includes(this.zoomMode)) {
       const z = this.resolveZoom(this.zoomMode);
@@ -433,7 +438,7 @@ export class Viewer extends EventTarget {
 
   /** Recompute what's visible, the current page, and what to render. */
   update() {
-    if (!this.layout || this.destroyed) return;
+    if (!this.layout || this.destroyed || this.isHidden) return;
     const left = this.container.scrollLeft - this.content.offsetLeft;
     const top = this.container.scrollTop - this.content.offsetTop;
     const vw = this.container.clientWidth;

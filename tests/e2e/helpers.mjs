@@ -105,11 +105,16 @@ export async function shot(page, name) {
 /** Open a fixture through the hidden file input; waits for page 1 to render. */
 export async function openFixture(page, name, { waitForRender = true } = {}) {
   // Mark the current viewer so we can tell when the new one has replaced it.
-  await page.evaluate(() => document.querySelector('.viewer')?.classList.add('stale-viewer'));
+  await page.evaluate(() => document.querySelectorAll('.viewer').forEach((v) => v.classList.add('stale-viewer')));
   await page.setInputFiles('#file-input', fixture(name));
   if (waitForRender) {
-    await page.waitForSelector('.viewer:not(.stale-viewer) .page[data-page-number="1"][data-state="rendered"]', { timeout: 15_000 });
+    await page.waitForSelector('.viewer-host:not([hidden]) .viewer:not(.stale-viewer) .page[data-page-number="1"][data-state="rendered"]', { timeout: 15_000 });
   }
+}
+
+/** Locator for page n in the active tab. */
+export function pageIn(page, n) {
+  return page.locator(`.viewer-host:not([hidden]) .page[data-page-number="${n}"]`);
 }
 
 /** The viewer's state snapshot. */

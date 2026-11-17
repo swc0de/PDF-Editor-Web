@@ -124,6 +124,23 @@ dist/pdf-editor.html   the deliverable
   visible area only. Text layer (pdf.js `TextLayer`) for selection, a link layer
   for internal/external links, and an error tile when a page can't be loaded.
 
+### Shell (`src/ui/`)
+
+- `app.js` — controller: tabs (`doc-tab.js`: one pdf.js document + viewer +
+  status bar per tab; hidden tabs stay in the DOM so zoom, scroll, layout and
+  rendered pages survive; the text selection is saved and restored), closed-tab
+  stack, recents, drag-and-drop, Read mode, full screen.
+- `commands.js` + `app-commands.js` — every action as a named command with
+  label, shortcut, enabled/checked state. The menu bar (`menubar.js`,
+  `app-menus.js`), keyboard shortcuts and the command palette (`palette.js`,
+  fuzzy matching in `fuzzy.js`) all use them.
+- `tools-panel.js` (from the tool registry), `side-panel.js` + `panels.js`
+  (rail + one side panel; panels register a `render()` when they're built),
+  `splitter.js` (drag or arrow-key resizing).
+- Preferences and the panel arrangement live in localStorage
+  (`core/settings.js`); recent files (bytes + first-page thumbnail) in
+  IndexedDB (`core/recents.js`, `core/idb.js`), in this browser only.
+
 ### Tool registry
 
 `tools/catalogue.js` defines every planned tool (id, category, icon, shortcut,
@@ -166,6 +183,12 @@ it's skipped and so are its tests.
   pdf.js provides), which is reading order for most but not all files.
 - Single-page layout flips pages with PageUp/PageDown, ←/→ and the status bar,
   not by scrolling past the end of a page.
+- Browsers reserve some shortcuts for themselves: in Chrome, Ctrl/⌘+W,
+  Ctrl/⌘+Shift+T and Ctrl+PageUp/PageDown act on the *browser* tab and never
+  reach the page. Use the tab's × / right-click menu or the File menu instead
+  (the shortcuts do work where the browser lets them through).
+- Recent files keep a copy of each file (up to 12 files, each up to 150 MB) in
+  this browser's storage; "Clear recent files" deletes them.
 
 ## Privacy
 

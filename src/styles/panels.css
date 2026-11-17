@@ -1,0 +1,188 @@
+/* Tools panel, side panel, rail, empty states. */
+
+.tools-panel,
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  min-width: 0;
+  background: var(--panel);
+}
+.tools-panel[hidden],
+.side-panel[hidden] { display: none; }
+
+.tools-panel { border-right: 1px solid var(--border); }
+.tools-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-2);
+}
+.tools-title,
+.side-panel-title { font-size: var(--text-md); font-weight: 600; }
+.tools-filter { width: 100%; }
+.tools-list { flex: 1; overflow: auto; padding: 0 var(--space-2) var(--space-3); }
+.tools-group + .tools-group { margin-top: var(--space-3); }
+.tools-group-title {
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.tools-items { margin: 0; padding: 0; list-style: none; }
+.tool-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  height: var(--control-h);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.tool-row:hover { background: var(--hover); }
+.tool-row .icon { color: var(--accent-text); }
+.tool-row[aria-disabled="true"] { cursor: default; }
+.tool-row[aria-disabled="true"] .icon { color: var(--text-muted); }
+.tool-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tools-none { padding: var(--space-2); }
+
+.side-panel { border-left: 1px solid var(--border); }
+.side-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.side-panel-body { flex: 1; min-height: 0; overflow: auto; }
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+  width: 40px;
+  padding: var(--space-2) 0;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+}
+.rail .rail-btn { width: 30px; height: 30px; }
+.rail .rail-btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); }
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+}
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--panel-2);
+  color: var(--text-muted);
+}
+.empty-title { font-weight: 600; }
+.empty-text { max-width: 28ch; color: var(--text-muted); }
+
+/* ------------------------------------------------------- palette */
+.dialog.palette {
+  width: min(620px, calc(100vw - 32px));
+  margin-top: 12vh;
+  overflow: hidden;
+}
+.palette-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.palette-input {
+  flex: 1;
+  height: 46px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-lg);
+}
+.palette-input:focus-visible { box-shadow: none; }
+.palette-list {
+  max-height: min(420px, 60vh);
+  margin: 0;
+  padding: var(--space-1);
+  overflow: auto;
+  list-style: none;
+}
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 34px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.palette-item[aria-selected="true"] { background: var(--accent-soft); }
+.palette-item[aria-disabled="true"] { opacity: .5; cursor: default; }
+.palette-item .icon { color: var(--text-muted); }
+.palette-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette-tag { color: var(--accent-text); font-size: var(--text-xs); font-weight: 500; }
+.palette-group { color: var(--text-muted); font-size: var(--text-sm); }
+.palette-shortcut {
+  min-width: 2.5em;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--text-xs);
+  text-align: center;
+  color: var(--text-muted);
+}
+.palette-empty { padding: var(--space-4); color: var(--text-muted); text-align: center; }
+
+/* ------------------------------------------------ prefs / about */
+.prefs-dialog .dialog-body { gap: var(--space-4); }
+.field select.input { height: var(--control-h); }
+.field-help { color: var(--text-muted); font-size: var(--text-sm); }
+.radio-group { border: 0; margin: 0; padding: 0; display: flex; flex-direction: row; flex-wrap: wrap; gap: var(--space-4); }
+.radio-group legend { padding: 0; margin-bottom: var(--space-1); width: 100%; }
+.radio { display: inline-flex; align-items: center; gap: 6px; }
+.radio input { accent-color: var(--accent); margin: 0; }
+
+.about-dialog { width: min(520px, calc(100vw - 32px)); }
+.about-head { display: flex; align-items: center; gap: var(--space-3); }
+.about-version { font-weight: 600; }
+.about-libs { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.about-libs caption { text-align: left; font-weight: 600; padding-bottom: var(--space-1); }
+.about-libs th, .about-libs td { padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: left; }
+.about-libs th { color: var(--text-muted); font-weight: 500; }
+.about-libs a { color: var(--accent-text); }
+.about-credit { color: var(--text-muted); font-size: var(--text-sm); }
+
+.shortcuts-dialog { width: min(520px, calc(100vw - 32px)); }
+.shortcuts-dialog .dialog-body { max-height: 60vh; overflow: auto; }
+.shortcuts-table { width: 100%; border-collapse: collapse; }
+.shortcuts-table td { padding: 5px 4px; border-bottom: 1px solid var(--border); }
+.shortcuts-table td:last-child { text-align: right; white-space: nowrap; }
+.shortcuts-table kbd {
+  margin-left: 4px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--text-sm);
+}

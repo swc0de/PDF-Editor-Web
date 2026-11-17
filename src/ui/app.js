@@ -1,56 +1,228 @@
-// The application controller: opens documents, owns the viewer and wires
-// commands, drag-and-drop, Read mode and full screen together.
+// The application controller: tabs of open documents, the shell (menus,
+// tools panel, side panel, status bar), commands, recents, drag-and-drop,
+// Read mode and full screen.
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { t } from '../i18n/index.js';
 import { createShell } from './shell.js';
 import { createHome } from './home.js';
-import { createStatusBar } from './statusbar.js';
+import { createTabStrip } from './tabs.js';
+import { createMenubar } from './menubar.js';
+import { createToolsPanel } from './tools-panel.js';
+import { createSidePanel } from './side-panel.js';
+import { buildMenus } from './app-menus.js';
+import { registerAppCommands } from './app-commands.js';
+import { openMenu, isMenuOpen } from './menu.js';
+import { openPalette } from './palette.js';
 import { toast } from './toast.js';
 import { alertDialog, confirmDialog, promptPassword } from './dialog.js';
-import { defineCommand, handleShortcut } from './commands.js';
-import { isMenuOpen } from './menu.js';
-import { toggleTheme } from './theme.js';
+import { handleShortcut, listCommands, primaryShortcut } from './commands.js';
+import { DocTab } from './doc-tab.js';
 import { getPdfjs, openPdf, isPasswordCancel } from '../view/pdfjs.js';
-import { Viewer } from '../view/viewer.js';
-import { runTool, getTool } from '../tools/registry.js';
+import { runTool, getTool, listTools } from '../tools/registry.js';
+import { getSetting, getArrangement, saveArrangement, resetArrangement, onSettingsChange } from '../core/settings.js';
+import { contentId, addRecent, setRecentThumbnail, getRecentBytes, removeRecent, clearRecents } from '../core/recents.js';
 
 const LOADING_DELAY = 150;
+const MAX_CLOSED = 10;
+const THUMB_WIDTH = 180;
 
 export class App extends EventTarget {
   constructor(root) {
     super();
     this.root = root;
-    this.doc = null;
+    this.tabs = [];
+    this.activeTab = null; // null = Home
+    this.closedTabs = [];
     this.readMode = false;
-    this.shell = createShell(root, {
-      onOpen: () => this.pickFile(),
-      onClose: () => this.closeDocument(),
-    });
+    this.arrangement = getArrangement();
+
+    this.shell = createShell(root, { onPalette: () => this.openPalette() });
     this.home = createHome(this.shell.main, {
       onOpen: () => this.pickFile(),
       onTool: (id) => this.useTool(id),
+      onOpenRecent: (rec) => this.openRecent(rec),
+      onRemoveRecent: (rec) => removeRecent(rec.id),
+      onClearRecents: () => this.clearRecents(),
     });
+
+    this.tabStrip = createTabStrip({
+      onActivate: (id) => this.activate(id ? this.tabs.find((tab) => tab.id === id) : null),
+      onClose: (id) => this.closeTab(this.tabs.find((tab) => tab.id === id)),
+      onContextMenu: (id, at, anchor) => this.tabContextMenu(this.tabs.find((tab) => tab.id === id), at, anchor),
+      onOpen: () => this.pickFile(),
+    });
+    this.shell.tabsSlot.append(this.tabStrip.el);
+
+    this.toolsPanel = createToolsPanel({
+      onTool: (id) => this.useTool(id),
+      getState: () => this.arrangement.tools,
+      setState: (patch) => this.updateArrangement('tools', patch),
+      side: () => getSetting('toolsSide'),
+    });
+    this.sidePanel = createSidePanel({
+      getTab: () => this.activeTab,
+      getState: () => this.arrangement.side,
+      setState: (patch) => this.updateArrangement('side', patch),
+    });
+    this.toolsPanel.splitter.classList.add('tools-splitter');
+    this.sidePanel.splitter.classList.add('side-splitter');
+    const ws = this.shell.workspace;
+    ws.prepend(this.toolsPanel.panel, this.toolsPanel.splitter);
+    ws.append(this.sidePanel.splitter, this.sidePanel.panel, this.sidePanel.rail);
+
     this.fileInput = h('input', {
       type: 'file',
       id: 'file-input',
       accept: 'application/pdf,.pdf',
+      multiple: true,
       hidden: true,
       tabindex: '-1',
     });
-    this.fileInput.addEventListener('change', () => {
-      const file = this.fileInput.files?.[0];
+    this.fileInput.addEventListener('change', async () => {
+      const files = [...(this.fileInput.files ?? [])];
       this.fileInput.value = '';
-      if (file) this.openFile(file);
+      for (const file of files) await this.openFile(file);
     });
     root.append(this.fileInput);
-    this.registerCommands();
+
+    registerAppCommands(this);
+    this.menubar = createMenubar(buildMenus(this), { label: t('menu.label') });
+    this.shell.menubarSlot.append(this.menubar.el);
+
+    this.applySettings();
+    onSettingsChange((key) => {
+      if (key === 'toolsSide') this.applySettings();
+    });
+    this.applyArrangement();
+    this.renderTabs();
     this.bindKeys();
     this.bindDragAndDrop();
   }
 
   get viewer() {
-    return this.doc?.viewer ?? null;
+    return this.activeTab?.viewer ?? null;
+  }
+
+  // ------------------------------------------------------- arrangement
+
+  applySettings() {
+    this.shell.setToolsSide(getSetting('toolsSide'));
+  }
+
+  applyArrangement() {
+    this.toolsPanel.render();
+    this.sidePanel.render();
+  }
+
+  updateArrangement(which, patch) {
+    this.arrangement = { ...this.arrangement, [which]: { ...this.arrangement[which], ...patch } };
+    saveArrangement(this.arrangement);
+    this.applyArrangement();
+  }
+
+  toggleToolsPanel() {
+    this.updateArrangement('tools', { visible: !this.arrangement.tools.visible });
+  }
+
+  toggleSidePanel() {
+    this.updateArrangement('side', { visible: !this.arrangement.side.visible });
+  }
+
+  showPanel(id) {
+    this.updateArrangement('side', { visible: true, panel: id });
+  }
+
+  resetArrangement() {
+    this.arrangement = resetArrangement();
+    this.applyArrangement();
+    toast(t('arrangement.reset'));
+  }
+
+  // -------------------------------------------------------------- tabs
+
+  renderTabs() {
+    this.tabStrip.render(this.tabs, this.activeTab?.id ?? null);
+  }
+
+  /** Show a tab, or the Home screen when tab is null. */
+  activate(tab) {
+    if (tab === this.activeTab && (tab || !this.home.hidden)) return;
+    this.activeTab?.hide();
+    this.activeTab = tab ?? null;
+    this.home.hidden = !!tab;
+    if (tab) {
+      tab.show();
+      this.shell.setStatusBar(tab.statusbar.el);
+      document.title = `${tab.name} — ${t('app.name')}`;
+      tab.viewer.focus();
+    } else {
+      this.exitReadMode();
+      this.shell.setStatusBar(null);
+      document.title = t('app.name');
+    }
+    this.renderTabs();
+    this.sidePanel.render();
+    this.dispatchEvent(new CustomEvent('tabchange'));
+  }
+
+  nextTab(dir) {
+    if (!this.tabs.length) return;
+    const i = this.activeTab ? this.tabs.indexOf(this.activeTab) : -1;
+    this.activate(this.tabs[(i + dir + this.tabs.length) % this.tabs.length]);
+  }
+
+  async closeTab(tab, { force = false } = {}) {
+    if (!tab) return false;
+    if (tab.dirty && !force) {
+      const ok = await confirmDialog({
+        title: t('close.dirty.title', { name: tab.name }),
+        message: t('close.dirty.message'),
+        confirmLabel: t('close.dirty.discard'),
+        danger: true,
+      });
+      if (!ok) return false;
+    }
+    const index = this.tabs.indexOf(tab);
+    this.closedTabs.push({
+      name: tab.name,
+      bytes: tab.bytes,
+      password: tab.password,
+      view: tab.viewState(),
+    });
+    if (this.closedTabs.length > MAX_CLOSED) this.closedTabs.shift();
+    this.tabs.splice(index, 1);
+    if (this.activeTab === tab) {
+      this.activeTab = null;
+      this.activate(this.tabs[Math.min(index, this.tabs.length - 1)] ?? null);
+    }
+    tab.destroy();
+    this.renderTabs();
+    this.dispatchEvent(new CustomEvent('tabclosed'));
+    return true;
+  }
+
+  async closeOtherTabs(keep) {
+    for (const tab of [...this.tabs]) {
+      if (tab !== keep) await this.closeTab(tab);
+    }
+    if (keep) this.activate(keep);
+  }
+
+  async reopenClosedTab() {
+    const last = this.closedTabs.pop();
+    if (!last) return null;
+    return this.openBytes(last.bytes, last.name, { password: last.password, view: last.view });
+  }
+
+  tabContextMenu(tab, at, anchor) {
+    if (!tab) return;
+    openMenu(anchor, [
+      { id: 'tab-close', label: t('tabs.close'), shortcut: primaryShortcut('tab.close'), run: () => this.closeTab(tab) },
+      { id: 'tab-close-others', label: t('tabs.closeOthers'), disabled: this.tabs.length < 2, run: () => this.closeOtherTabs(tab) },
+      'separator',
+      { id: 'tab-reopen', label: t('tabs.reopen'), shortcut: primaryShortcut('tab.reopen'), disabled: !this.closedTabs.length, run: () => this.reopenClosedTab() },
+    ], { at, label: tab.name });
   }
 
   // ------------------------------------------------------------ opening
@@ -70,11 +242,55 @@ export class App extends EventTarget {
     return this.openBytes(bytes, file.name);
   }
 
-  async openBytes(bytes, name) {
+  async openRecent(rec) {
+    const bytes = rec.stored ? await getRecentBytes(rec.id) : null;
+    if (!bytes) {
+      toast(t('home.recents.missing', { name: rec.name }));
+      this.pickFile();
+      return null;
+    }
+    return this.openBytes(bytes, rec.name);
+  }
+
+  async clearRecents() {
+    const ok = await confirmDialog({
+      title: t('home.recents.clearTitle'),
+      message: t('home.recents.clearMessage'),
+      confirmLabel: t('home.recents.clear'),
+      danger: true,
+    });
+    if (ok) await clearRecents();
+  }
+
+  defaultView() {
+    const layout = getSetting('defaultLayout');
+    return {
+      zoom: getSetting('defaultZoom'),
+      mode: layout === 'two-up-cover' ? 'two-up' : layout,
+      cover: layout === 'two-up-cover',
+      rotation: 0,
+    };
+  }
+
+  /**
+   * Open PDF bytes in a new tab (or switch to the tab that already has them).
+   * @param {Uint8Array} bytes
+   * @param {string} name
+   * @param {{ password?: string, view?: object }} [o]
+   */
+  async openBytes(bytes, name, { password = null, view = null } = {}) {
+    const id = await contentId(bytes);
+    const existing = this.tabs.find((tab) => tab.contentId === id);
+    if (existing) {
+      this.activate(existing);
+      return existing;
+    }
+
     const loading = this.showLoading(name);
     let result;
     try {
       result = await openPdf(bytes, {
+        password,
         askPassword: (retry) => {
           loading.pause();
           return promptPassword({ filename: name, retry }).finally(() => loading.resume());
@@ -89,21 +305,44 @@ export class App extends EventTarget {
     const pdfjs = await getPdfjs();
     loading.done();
 
-    this.closeDocument();
-    const host = h('div.viewer-host');
-    this.shell.main.append(host);
-    this.home.hidden = true;
-    const viewer = new Viewer(host, { pdfjs, doc: result.doc });
-    viewer.addEventListener('externallink', (e) => this.openExternalLink(e.detail.url));
-    const statusbar = createStatusBar(viewer);
-    this.shell.setStatusBar(statusbar.el);
-    this.shell.setDocument(name);
-    document.title = `${name} — ${t('app.name')}`;
-    this.doc = { name, bytes, pdf: result.doc, password: result.password, viewer, statusbar, host };
-    await viewer.init();
-    viewer.focus();
-    this.dispatchEvent(new CustomEvent('documentopened', { detail: { name } }));
-    return this.doc;
+    const tab = new DocTab({
+      name,
+      bytes,
+      contentId: id,
+      pdf: result.doc,
+      pdfjs,
+      password: result.password,
+      view: view ?? this.defaultView(),
+    });
+    tab.viewer.addEventListener('externallink', (e) => this.openExternalLink(e.detail.url));
+    tab.addEventListener('dirtychange', () => this.renderTabs());
+    this.tabs.push(tab);
+    this.shell.main.append(tab.host);
+    this.activate(tab);
+    await tab.init();
+    this.rememberRecent(tab);
+    this.dispatchEvent(new CustomEvent('documentopened', { detail: { name, tab } }));
+    return tab;
+  }
+
+  /** Save to recents, then add a first-page thumbnail in the background. */
+  async rememberRecent(tab) {
+    const ok = await addRecent({ id: tab.contentId, name: tab.name, bytes: tab.bytes, pageCount: tab.pdf.numPages });
+    if (!ok) return;
+    try {
+      const page = await tab.pdf.getPage(1);
+      const vp1 = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: THUMB_WIDTH / vp1.width });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(viewport.width);
+      canvas.height = Math.round(viewport.height);
+      await page.render({ canvas, viewport }).promise;
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      canvas.width = 0;
+      if (blob) await setRecentThumbnail(tab.contentId, blob);
+    } catch {
+      /* no thumbnail: the card shows a generic icon */
+    }
   }
 
   showOpenError(name, err) {
@@ -138,21 +377,6 @@ export class App extends EventTarget {
     };
   }
 
-  closeDocument() {
-    if (!this.doc) return;
-    const { viewer, pdf, host } = this.doc;
-    this.doc = null;
-    this.exitReadMode();
-    viewer.destroy();
-    pdf.loadingTask.destroy();
-    host.remove();
-    this.shell.setStatusBar(null);
-    this.shell.setDocument(null);
-    this.home.hidden = false;
-    document.title = t('app.name');
-    this.dispatchEvent(new CustomEvent('documentclosed'));
-  }
-
   async openExternalLink(url) {
     let parsed;
     try {
@@ -180,7 +404,7 @@ export class App extends EventTarget {
   }
 
   enterReadMode() {
-    if (!this.doc) {
+    if (!this.activeTab) {
       toast(t('readMode.needsDocument'));
       return;
     }
@@ -212,7 +436,7 @@ export class App extends EventTarget {
     }
   }
 
-  // -------------------------------------------------------------- tools
+  // ------------------------------------------------------ tools/palette
 
   async useTool(id) {
     const tool = getTool(id);
@@ -224,33 +448,35 @@ export class App extends EventTarget {
     await runTool(id, { app: this });
   }
 
-  // ------------------------------------------------------------ commands
-
-  registerCommands() {
-    const hasDoc = () => !!this.doc;
-    const v = () => this.viewer;
-    defineCommand({ id: 'file.open', label: 'command.file.open', icon: 'folderOpen', shortcut: 'Mod+O', run: () => this.pickFile() });
-    defineCommand({ id: 'file.close', label: 'command.file.close', icon: 'x', enabled: hasDoc, run: () => this.closeDocument() });
-    defineCommand({ id: 'view.zoomIn', label: 'command.view.zoomIn', icon: 'plus', shortcut: 'Mod+=', enabled: hasDoc, run: () => v().zoomIn() });
-    defineCommand({ id: 'view.zoomOut', label: 'command.view.zoomOut', icon: 'minus', shortcut: 'Mod+-', enabled: hasDoc, run: () => v().zoomOut() });
-    defineCommand({ id: 'view.actualSize', label: 'command.view.actualSize', shortcut: 'Mod+0', enabled: hasDoc, run: () => v().setZoom(1) });
-    defineCommand({ id: 'view.fitWidth', label: 'zoom.fitWidth', icon: 'fitWidth', enabled: hasDoc, run: () => v().setZoom('fit-width') });
-    defineCommand({ id: 'view.fitPage', label: 'zoom.fitPage', icon: 'fitPage', enabled: hasDoc, run: () => v().setZoom('fit-page') });
-    defineCommand({ id: 'view.layout.continuous', label: 'layout.continuous', icon: 'pageContinuous', enabled: hasDoc, run: () => v().setMode('continuous') });
-    defineCommand({ id: 'view.layout.single', label: 'layout.single', icon: 'pageSingle', enabled: hasDoc, run: () => v().setMode('single') });
-    defineCommand({ id: 'view.layout.twoUp', label: 'layout.twoUp', icon: 'pageTwoUp', enabled: hasDoc, run: () => v().setMode('two-up', { cover: false }) });
-    defineCommand({ id: 'view.layout.twoUpCover', label: 'layout.twoUpCover', icon: 'pageCover', enabled: hasDoc, run: () => v().setMode('two-up', { cover: true }) });
-    defineCommand({ id: 'view.rotateLeft', label: 'command.view.rotateLeft', icon: 'rotateCcw', enabled: hasDoc, run: () => v().rotate(-90) });
-    defineCommand({ id: 'view.rotateRight', label: 'command.view.rotateRight', icon: 'rotateCw', enabled: hasDoc, run: () => v().rotate(90) });
-    defineCommand({ id: 'view.fullscreen', label: 'command.view.fullscreen', icon: 'maximize', shortcut: 'F11', run: () => this.toggleFullscreen() });
-    defineCommand({ id: 'view.readMode', label: 'command.view.readMode', icon: 'bookOpen', enabled: hasDoc, run: () => this.toggleReadMode() });
-    defineCommand({ id: 'view.exitReadMode', label: 'readMode.exit', shortcut: 'Escape', enabled: () => this.readMode, run: () => this.exitReadMode() });
-    defineCommand({ id: 'view.toggleTheme', label: 'command.view.toggleTheme', run: () => toggleTheme() });
-    defineCommand({ id: 'go.firstPage', label: 'command.go.firstPage', enabled: hasDoc, run: () => v().goToPage(1) });
-    defineCommand({ id: 'go.lastPage', label: 'command.go.lastPage', enabled: hasDoc, run: () => v().goToPage(v().numPages) });
-    defineCommand({ id: 'go.nextPage', label: 'status.nextPage', enabled: hasDoc, run: () => v().next() });
-    defineCommand({ id: 'go.prevPage', label: 'status.prevPage', enabled: hasDoc, run: () => v().prev() });
+  paletteItems() {
+    const commands = listCommands()
+      .filter((c) => !c.hidden)
+      .map((c) => ({
+        id: c.id,
+        label: t(c.label),
+        group: t(`menu.${c.id.split('.')[0]}`),
+        icon: c.icon,
+        shortcut: primaryShortcut(c.id),
+        disabled: !c.enabled(),
+        run: () => c.run(),
+      }));
+    const tools = listTools().map((tool) => ({
+      id: `tool:${tool.id}`,
+      label: t(tool.label),
+      group: t('palette.tool'),
+      icon: tool.icon,
+      shortcut: tool.shortcut,
+      hint: tool.status === 'ready' ? null : t('status.soon'),
+      run: () => this.useTool(tool.id),
+    }));
+    return [...commands, ...tools];
   }
+
+  openPalette() {
+    openPalette(() => this.paletteItems());
+  }
+
+  // ------------------------------------------------------- input wiring
 
   bindKeys() {
     // Show the big viewer focus ring only while navigating by keyboard.
@@ -288,14 +514,14 @@ export class App extends EventTarget {
       depth = Math.max(0, depth - 1);
       if (depth === 0) overlay.hidden = true;
     });
-    window.addEventListener('drop', (e) => {
+    window.addEventListener('drop', async (e) => {
       if (!hasFiles(e)) return;
       e.preventDefault();
       depth = 0;
       overlay.hidden = true;
       const files = [...e.dataTransfer.files];
-      const file = files.find((f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) ?? files[0];
-      if (file) this.openFile(file);
+      const pdfs = files.filter((f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+      for (const file of pdfs.length ? pdfs : files.slice(0, 1)) await this.openFile(file);
     });
   }
 }

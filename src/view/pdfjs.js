@@ -63,10 +63,11 @@ export class PasswordCancelled extends Error {
  * @param {(fraction: number) => void} [options.onProgress]
  * @returns {Promise<{ doc: object, password: string|null }>}
  */
-export async function openPdf(bytes, { askPassword, onProgress } = {}) {
+export async function openPdf(bytes, { askPassword, onProgress, password: initialPassword = null } = {}) {
   const pdfjs = await getPdfjs();
   const task = pdfjs.getDocument({
     data: bytes.slice(), // pdf.js transfers (detaches) the buffer it gets
+    password: initialPassword ?? undefined,
     cMapUrl: libUrl('pdfjs', 'cmaps'),
     cMapPacked: true,
     standardFontDataUrl: libUrl('pdfjs', 'standardFonts'),
@@ -80,7 +81,7 @@ export async function openPdf(bytes, { askPassword, onProgress } = {}) {
     verbosity: pdfjs.VerbosityLevel.ERRORS,
   });
 
-  let password = null;
+  let password = initialPassword;
   let cancelled = false;
   task.onPassword = async (updatePassword, reason) => {
     const retry = reason === pdfjs.PasswordResponses.INCORRECT_PASSWORD;
