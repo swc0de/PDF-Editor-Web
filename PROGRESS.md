@@ -14,8 +14,8 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M7 | Properties, attachments, layers | approved |
 | M8 | Comments and annotations | approved |
 | M9 | Forms and signatures | approved |
-| M10 | Protect, redact, print | awaiting approval |
-| M11 | Scan & OCR | todo |
+| M10 | Protect, redact, print | approved |
+| M11 | Scan & OCR | in progress |
 | M12 | Accessibility checker, polish and final audit | todo |
 
 ## Environment notes (for any session)
@@ -261,7 +261,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   `freeTextFont`; new read-only op `annotationSpec` (toolbar reads a selected box's style). Tests: new e2e "text boxes work
   like Word", unit test for wrapping/style round-trip.
 
-### M10 — Protect, redact, print (awaiting approval)
+### M10 — Protect, redact, print (approved)
 - **Encryption outcome:** works. `@neslinesli93/qpdf-wasm@0.3.1` (qpdf 12.2.0, ISC build of Apache-2.0 qpdf) in
   `libs.config.js` (`qpdf: main dist/qpdf.js, wasm dist/qpdf.wasm`), devDependency pinned. `core/qpdf.js`: fetch js+wasm on
   the main thread, classic Blob worker per run; quirks of this build: no `wasmBinary` → `locateFile()` returns a Blob URL
