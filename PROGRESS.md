@@ -12,8 +12,8 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M5 | Organize pages | approved |
 | M6 | Combine and split | approved |
 | M7 | Properties, attachments, layers | approved |
-| M8 | Comments and annotations | awaiting approval |
-| M9 | Forms and signatures | todo |
+| M8 | Comments and annotations | approved |
+| M9 | Forms and signatures | in progress |
 | M10 | Protect, redact, print | todo |
 | M11 | Scan & OCR | todo |
 | M12 | Accessibility checker, polish and final audit | todo |
@@ -195,7 +195,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   "null"/"undefined"/"[object" text across all panels.
 - **Tests:** `info.spec.mjs` (9) + smoke stray-text test. Total 122.
 
-### M8 — Comments and annotations (awaiting approval)
+### M8 — Comments and annotations (approved)
 - **Ops (worker):** `core/ops/annot-ops.js` — addAnnotations({items:[{page,spec}]}) → {ids}, updateAnnotation({page,id,
   rect?,from?,contents?,color?,opacity?,width?,fontSize?}) (`from` = rect the UI measured; pdf.js can report a different
   rect than /Rect, so the same from→rect transform is applied to /Rect, QuadPoints, L, InkList), deleteAnnotations
