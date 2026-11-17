@@ -4,8 +4,8 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 
 | Milestone | Name | Status |
 |---|---|---|
-| M0 | Scaffold, build and test harness | awaiting approval |
-| M1 | Core viewer | todo |
+| M0 | Scaffold, build and test harness | approved |
+| M1 | Core viewer | in progress |
 | M2 | App shell, tabs, home screen | todo |
 | M3 | Find and navigation | todo |
 | M4 | Document model, undo/redo, save, autosave | todo |
@@ -30,7 +30,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 
 ## Notes
 
-### M0 — Scaffold, build and test harness (awaiting approval)
+### M0 — Scaffold, build and test harness (approved)
 - **Bundling:** `build.mjs` embeds each ES module verbatim as a string (JSON script block), rewrites
   relative imports to `@app/<path>`, and a bootstrap creates Blob URLs + a runtime import map, then
   imports `@app/main.js`. Real ESM semantics; `src/` also runs unbundled via `npm run dev`.
