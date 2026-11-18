@@ -350,3 +350,15 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 - `build.mjs` writes `../pdf-editor.html`; tests open it via `APP_URL = ../pdf-editor.html`. Run `node build.mjs`,
   `npm install` and `npm test` inside `pdf-editor-source/`.
 
+
+### Theme colours (requested during M12 review)
+- Dark theme now uses the user's two grays: `#2b2d2f` for the base and panels (raised surfaces `#353739`) and
+  `#525252` for separators and the page canvas. Text `#ececec`, muted `#b0b0b0` (AA on all dark surfaces).
+- Every red is the Open PDF button crimson `#b70228` (hover `#8a011e`): the dark theme's pink variants
+  (`#e0405f` focus ring, `#ff7a93` accent text, `#ff6b84` danger, `#ff8da1` toast icon) and the stray reds
+  (`#cc0020` redaction draft, `#d0102f` OCR low confidence, `#7a1426` error tile / thumbnail text, pink logo fold)
+  are gone.
+- Crimson text on the dark grays is ~2:1, below WCAG AA, so in dark mode `--accent-text` / `--danger-text` are white
+  and the state is carried by a crimson fill (`--accent-soft`, `--danger-soft` = crimson at 34%), border or icon. The
+  dark focus ring is crimson with a thin light outer edge so it stays visible. Light theme is unchanged apart from the
+  crimson-only reds and the toast colour.

@@ -102,7 +102,9 @@
 .field { display: flex; flex-direction: column; gap: var(--space-1); }
 .field-label { font-weight: 500; }
 .field .input { height: var(--control-h); }
-.field-error { color: var(--danger); }
+.field-error { color: var(--danger-text); }
+.field-error:not(:empty), .split-preview.invalid, .ocr-row.failed .ocr-row-state, .find-bar[data-state="none"] .find-count { background: var(--danger-soft); border-radius: var(--radius-sm); }
+:root[data-theme="dark"] :is(.field-error:not(:empty), .split-preview.invalid, .ocr-row.failed .ocr-row-state, .find-bar[data-state="none"] .find-count) { padding-inline: 6px; }
 .link-url {
   padding: var(--space-2);
   border-radius: var(--radius-sm);
@@ -132,14 +134,14 @@
   max-width: min(520px, calc(100vw - 32px));
   padding: 6px 6px 6px var(--space-3);
   border-radius: var(--radius);
-  background: #2b3238;
-  color: #f1f3f4;
+  background: var(--toast-bg);
+  color: #f1f1f1;
   box-shadow: var(--popover-shadow);
   pointer-events: auto;
   animation: toast-in var(--dur) var(--ease);
 }
-:root[data-theme="dark"] .toast { background: #3a434a; }
-.toast.error .icon { color: #ff8da1; }
+.toast.error { box-shadow: inset 4px 0 0 var(--accent), var(--popover-shadow); }
+.toast.error .icon { color: #ffffff; }
 .toast.leaving { opacity: 0; transition: opacity 150ms; }
 .toast .toast-close { width: 22px; height: 22px; color: inherit; opacity: .7; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }

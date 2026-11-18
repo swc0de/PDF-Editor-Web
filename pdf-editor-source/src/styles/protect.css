@@ -8,8 +8,8 @@
 .redact-draft {
   position: absolute;
   z-index: 5;
-  border: 1.5px solid #cc0020;
-  background: rgba(217, 13, 38, .18);
+  border: 1.5px solid #b70228;
+  background: rgba(183, 2, 40, .18);
   pointer-events: none;
 }
 .redact-toolbar .redact-search { gap: 4px; }

@@ -68,9 +68,9 @@ Progress is tracked in `pdf-editor-source/PROGRESS.md` (create it if it's missin
 ## Visual design
 
 - A calm, compact desktop-app look, not a marketing page.
-- Dark theme: base #1e2327, panels #262c31 / #2e353b, separators #3a4248, text #e6e8ea, muted #9aa3ab.
+- Dark theme (two grays): base and panels #2b2d2f (raised #353739), separators and the page canvas #525252, text #ececec, muted #b0b0b0.
 - Light theme: base #f6f7f8, white panels, separators #d9dde1, text #1e2327.
-- Accent: crimson #b70228 (hover #8a011e) for primary buttons, the active tab underline, selection outlines and the focus ring.
+- Accent: crimson #b70228 (hover #8a011e) in both themes, the only red in the UI: primary buttons, the active tab underline, selection outlines, the focus ring, errors. In dark mode crimson text would fail WCAG AA, so accent/error states there use a crimson fill, border or icon with light text.
 - System UI font stack, 13px UI text, 28–32px controls, 6px radii, shadows only on popovers/modals. Inline SVG icons (Lucide-style strokes), with tooltips that show shortcuts.
 - Pages sit on a neutral canvas with a soft shadow and 16px gaps. Respect prefers-color-scheme on first run, and remember the user's choice.
 - All theming goes through CSS custom properties.

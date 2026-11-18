@@ -260,6 +260,6 @@ select.form-control[size] option:checked { background: #b9d0f3 linear-gradient(#
 .field-row-icon { display: inline-flex; margin-top: 2px; color: var(--text-muted); }
 .field-row-text { display: flex; flex-direction: column; min-width: 0; }
 .field-row-name { overflow: hidden; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
-.field-required { color: var(--danger); }
+.field-required { color: var(--danger-text); }
 .field-row-meta { font-size: 11px; }
 .field-row-value { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

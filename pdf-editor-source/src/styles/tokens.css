@@ -38,7 +38,7 @@
   --accent: #b70228;
   --accent-hover: #8a011e;
   --accent-contrast: #ffffff;
-  --logo-fold: #f0a3b3;
+  --logo-fold: #8a011e;
   --logo-lines: rgba(255, 255, 255, .9);
 }
 
@@ -63,32 +63,40 @@
   --badge-bg: #eceff2;
   --badge-text: #4e5964;
   --danger: #b70228;
+  --danger-text: #b70228;
+  --danger-soft: transparent;
+  --toast-bg: #2b2d2f;
   --success: #1d7a45;
   --success-contrast: #ffffff;
   --warning: #9a6200;
 }
 
-/* Dark theme */
+/* Dark theme: two grays (#2b2d2f surfaces, #525252 separators and page
+   canvas) with the crimson #b70228 accent. Crimson text on these grays is
+   below WCAG AA, so in dark mode accent and error states are shown with a
+   crimson fill, border or icon and the text itself stays light. */
 :root[data-theme="dark"] {
-  --bg: #1e2327;
-  --panel: #262c31;
-  --panel-2: #2e353b;
-  --border: #3a4248;
-  --border-strong: #4a535a;
-  --text: #e6e8ea;
-  --text-muted: #9aa3ab;
-  --hover: rgba(255, 255, 255, .06);
-  --active: rgba(255, 255, 255, .10);
-  --canvas: #171b1e;
-  --page-shadow: 0 1px 3px rgba(0, 0, 0, .5), 0 4px 16px rgba(0, 0, 0, .35);
+  --bg: #2b2d2f;
+  --panel: #2b2d2f;
+  --panel-2: #353739;
+  --border: #525252;
+  --border-strong: #626262;
+  --text: #ececec;
+  --text-muted: #b0b0b0;
+  --hover: rgba(255, 255, 255, .07);
+  --active: rgba(255, 255, 255, .12);
+  --canvas: #525252;
+  --page-shadow: 0 1px 3px rgba(0, 0, 0, .45), 0 4px 16px rgba(0, 0, 0, .3);
   --popover-shadow: 0 10px 30px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35);
-  --focus-ring: 0 0 0 2px var(--panel), 0 0 0 4px #e0405f;
-  /* crimson text on dark surfaces is too dim for AA; use a lighter tint */
-  --accent-text: #ff7a93;
-  --accent-soft: rgba(255, 90, 120, .12);
-  --badge-bg: #353d44;
-  --badge-text: #b7c0c7;
-  --danger: #ff6b84;
+  --focus-ring: 0 0 0 1px var(--panel), 0 0 0 3px var(--accent), 0 0 0 4px rgba(255, 255, 255, .6);
+  --accent-text: #ffffff;
+  --accent-soft: rgba(183, 2, 40, .34);
+  --badge-bg: #3e4042;
+  --badge-text: #cfcfcf;
+  --danger: #b70228;
+  --danger-text: #ffffff;
+  --danger-soft: rgba(183, 2, 40, .34);
+  --toast-bg: #3b3d3f;
   --success: #4cc27f;
   --success-contrast: #0d1f15;
   --warning: #f0b44c;

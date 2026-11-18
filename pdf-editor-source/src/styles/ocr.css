@@ -11,7 +11,7 @@
 .ocr-row progress { width: 100%; accent-color: var(--accent); }
 .ocr-row-state { color: var(--text-muted); text-align: right; font-variant-numeric: tabular-nums; }
 .ocr-row.done .ocr-row-state { color: #1d7a3a; }
-.ocr-row.failed .ocr-row-state { color: var(--danger); }
+.ocr-row.failed .ocr-row-state { color: var(--danger-text); }
 
 /* Verify: nearly full screen. */
 .dialog.ocr-verify { width: calc(100vw - 48px); max-width: 1400px; height: calc(100vh - 48px); max-height: none; }
@@ -26,7 +26,7 @@
 .ocr-key::before { content: ""; width: 10px; height: 10px; border: 2px solid; border-radius: 2px; }
 .ocr-key.conf-high::before { border-color: #1d9a4a; background: rgba(29, 154, 74, .15); }
 .ocr-key.conf-mid::before { border-color: #d48a00; background: rgba(212, 138, 0, .18); }
-.ocr-key.conf-low::before { border-color: #d0102f; background: rgba(208, 16, 47, .18); }
+.ocr-key.conf-low::before { border-color: #b70228; background: rgba(183, 2, 40, .18); }
 .ocr-help { margin: 0; font-size: var(--text-sm); }
 .ocr-stage {
   flex: 1;
@@ -50,7 +50,7 @@
 }
 .ocr-word.conf-high { border-color: rgba(29, 154, 74, .75); background: rgba(29, 154, 74, .07); }
 .ocr-word.conf-mid { border-color: #d48a00; background: rgba(212, 138, 0, .16); }
-.ocr-word.conf-low { border-color: #d0102f; background: rgba(208, 16, 47, .16); }
+.ocr-word.conf-low { border-color: #b70228; background: rgba(183, 2, 40, .16); }
 .ocr-word.corrected { border-color: #0050c8; background: rgba(0, 80, 200, .14); }
 .ocr-word:hover { box-shadow: 0 0 0 1px currentColor; }
 .ocr-word:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent); }

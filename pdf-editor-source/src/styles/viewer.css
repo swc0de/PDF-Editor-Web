@@ -63,11 +63,11 @@
   gap: var(--space-2);
   padding: var(--space-5);
   background: repeating-linear-gradient(-45deg, #fbf3f5 0 12px, #f7e9ec 12px 24px);
-  color: #7a1426;
+  color: #b70228;
   text-align: center;
   font-size: var(--text-md);
 }
-.page-error span { max-width: 32ch; color: #6b4b52; }
+.page-error span { max-width: 32ch; color: #5c3a42; }
 
 .textLayer { z-index: 1; }
 .textLayer ::selection { background: rgba(183, 2, 40, .25); }
