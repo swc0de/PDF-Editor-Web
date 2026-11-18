@@ -15,8 +15,8 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M8 | Comments and annotations | approved |
 | M9 | Forms and signatures | approved |
 | M10 | Protect, redact, print | approved |
-| M11 | Scan & OCR | awaiting approval |
-| M12 | Accessibility checker, polish and final audit | todo |
+| M11 | Scan & OCR | approved |
+| M12 | Accessibility checker, polish and final audit | in progress |
 
 ## Environment notes (for any session)
 
@@ -290,7 +290,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   stream of the saved file; sanitize removes exactly the selected items. Smoke/palette "Coming soon" example is now the
   accessibility checker.
 
-### M11 — Scan & OCR (awaiting approval)
+### M11 — Scan & OCR (approved)
 - **Libraries:** tesseract.js 7.0.0 (main ESM + `dist/worker.min.js`), tesseract.js-core 7.0.0 (`simd`/`plain` LSTM
   `.wasm.js` with embedded wasm), `@tesseract.js-data/<lang>@1.0.0` (`4.0.0_best_int/<lang>.traineddata.gz`) for
   `OCR_LANGUAGES` (12 Latin-script languages; one LIBS entry each, `group: 'tessdata'`, one row in About). devDeps: only
