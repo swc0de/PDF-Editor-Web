@@ -15,7 +15,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M8 | Comments and annotations | approved |
 | M9 | Forms and signatures | approved |
 | M10 | Protect, redact, print | approved |
-| M11 | Scan & OCR | in progress |
+| M11 | Scan & OCR | awaiting approval |
 | M12 | Accessibility checker, polish and final audit | todo |
 
 ## Environment notes (for any session)
@@ -289,4 +289,31 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 - **Tests:** `protect.spec.mjs` (5), `tests/unit/protect-ops.spec.mjs` (4) — redacted text absent from every decoded
   stream of the saved file; sanitize removes exactly the selected items. Smoke/palette "Coming soon" example is now the
   accessibility checker.
+
+### M11 — Scan & OCR (awaiting approval)
+- **Libraries:** tesseract.js 7.0.0 (main ESM + `dist/worker.min.js`), tesseract.js-core 7.0.0 (`simd`/`plain` LSTM
+  `.wasm.js` with embedded wasm), `@tesseract.js-data/<lang>@1.0.0` (`4.0.0_best_int/<lang>.traineddata.gz`) for
+  `OCR_LANGUAGES` (12 Latin-script languages; one LIBS entry each, `group: 'tessdata'`, one row in About). devDeps: only
+  eng data installed (tests use English).
+- **Engine (`core/ocr.js`):** worker blob = fetch shim (serves `*.traineddata.gz` from base64 embedded in the source) +
+  core (defines `TesseractCore`, so getCore skips importScripts) + Tesseract worker script; created with
+  `createWorker(lang, 1, { workerPath: blobUrl, workerBlobURL: false, langPath: 'https://pdf-editor.invalid/tessdata',
+  cacheMethod: 'none' })`. Why not `{code, data}` langs: tesseract.js 7 `initialize` joins `l.data` (bug). Own pool (not
+  the scheduler) so each worker's logger reports progress for its current page.
+- **Preprocess (`core/ocr-preprocess.js`):** toGray, median3, otsu (dark = `<= threshold`), estimateSkew (±6°, sum of
+  squares of projection profile; positive = lines run down-right) in a Blob worker.
+- **Pipeline (`ui/ocr/ocr-run.js`):** render at 300 dpi (max 3300 px side, page rotation, annotations off) → preprocess →
+  optional orientation (quick OCR at 0/90/180/270 on ≤1200 px copy) → canvas rotate by `phi = orientation − skew` → PNG →
+  words in image px. `imageToRender` (inverse rotation) + `viewport.convertToPdfPoint` → `wordsToPdf` (baseline start,
+  direction, length, size = height above baseline / 0.73). Dictionary: pref `ocr.dictionary` `{ corrections }`.
+- **Op (`core/ops/ocr-ops.js` addTextLayer):** per page, removes earlier OCR streams (marked `/PDFEditorOCR true`), wraps
+  existing content in q/Q, adds `BT 3 Tr … Tm /OCRText 1 Tf <hex> Tj … ET` (word + trailing space, stretched via Tm).
+- **UI:** `ui/ocr/ocr.js` (`app.ocr`: options dialog with prefs `ocr.options` / `ocr.lang`, defaults deskew+denoise+binarize
+  on, skip pages with text; progress modal per page; cancel terminates workers), `ui/ocr/verify.js` (Verify screen).
+- **Fixture:** `scanned.pdf` — 2 image-only pages rasterized in Node from DM Mono glyph outlines (scanline fill, 3×3
+  supersampling, paper tone + speckles, page 2 skewed 2°), grey PNG encoded with zlib. Without denoise+binarize Tesseract
+  misreads two lines; with them every word is 90–96 %.
+- **Tests:** `ocr.spec.mjs` (4: recognize → correct → apply → find "capybara"/"quetzal"/corrected word/phrase across
+  lines, saved file text, undo; dictionary + region/page re-OCR + cancel; skip pages with text; dark screenshots),
+  `tests/unit/ocr-preprocess.spec.mjs` (2), `tests/unit/ocr-ops.spec.mjs` (1).
 

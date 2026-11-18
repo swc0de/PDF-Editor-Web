@@ -20,7 +20,7 @@ export function openAbout() {
       h('table.about-libs',
         h('caption', t('about.libraries')),
         h('thead', h('tr', h('th', { scope: 'col' }, t('about.library')), h('th', { scope: 'col' }, t('about.libVersion')), h('th', { scope: 'col' }, t('about.license')))),
-        h('tbody', Object.values(LIBS).map((lib) => h('tr',
+        h('tbody', aboutRows().map((lib) => h('tr',
           h('td', h('a', { href: lib.homepage, target: '_blank', rel: 'noopener noreferrer' }, lib.pkg)),
           h('td', lib.version),
           h('td', lib.license))))),
@@ -45,4 +45,15 @@ export function openShortcuts() {
     actions: [{ label: t('common.close'), value: true, primary: true }],
     cancelValue: true,
   });
+}
+
+/** Libraries for the About table; OCR language packages are one row. */
+function aboutRows() {
+  const libs = Object.values(LIBS);
+  const data = libs.filter((l) => l.group === 'tessdata');
+  const rows = libs.filter((l) => !l.group);
+  if (data.length) {
+    rows.push({ ...data[0], pkg: `@tesseract.js-data/* (${data.map((l) => l.pkg.split('/')[1]).join(', ')})` });
+  }
+  return rows;
 }

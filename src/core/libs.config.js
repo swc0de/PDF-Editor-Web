@@ -9,6 +9,12 @@
 
 export const CDN_BASE = 'https://cdn.jsdelivr.net/npm';
 
+/**
+ * OCR languages offered: Latin-script languages whose characters the PDF
+ * standard fonts can encode (the invisible text layer uses Helvetica).
+ */
+export const OCR_LANGUAGES = ['eng', 'deu', 'fra', 'spa', 'ita', 'por', 'nld', 'dan', 'swe', 'nor', 'fin', 'cat'];
+
 export const LIBS = {
   pdfjs: {
     pkg: 'pdfjs-dist',
@@ -62,8 +68,29 @@ export const LIBS = {
     homepage: 'https://tesseract.projectnaptha.com/',
     files: {
       main: 'dist/tesseract.esm.min.js',
+      worker: 'dist/worker.min.js',
     },
   },
+  tesseractCore: {
+    pkg: 'tesseract.js-core',
+    version: '7.0.0',
+    license: 'Apache-2.0',
+    homepage: 'https://github.com/naptha/tesseract.js-core',
+    files: {
+      // LSTM-only builds with the WebAssembly embedded (no separate .wasm fetch).
+      simd: 'tesseract-core-simd-lstm.wasm.js',
+      plain: 'tesseract-core-lstm.wasm.js',
+    },
+  },
+  // Trained data, one package per language, downloaded when a language is chosen.
+  ...Object.fromEntries(OCR_LANGUAGES.map((code) => [`tessdata_${code}`, {
+    pkg: `@tesseract.js-data/${code}`,
+    version: '1.0.0',
+    license: 'Apache-2.0',
+    homepage: 'https://github.com/naptha/tessdata',
+    group: 'tessdata',
+    files: { main: `4.0.0_best_int/${code}.traineddata.gz` },
+  }])),
 };
 
 /** Absolute CDN URL for a file of a pinned library. */

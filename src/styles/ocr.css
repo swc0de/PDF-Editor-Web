@@ -1,0 +1,62 @@
+/* M11 — OCR dialog, progress and the Verify screen. */
+.ocr-options { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; border: 0; }
+.ocr-options legend { padding: 0; margin-bottom: var(--space-1); font-weight: 500; }
+.ocr-dialog .input[name="range"] { width: 140px; height: var(--control-h-sm); }
+.ocr-dialog select.input { height: var(--control-h); }
+
+.dialog.ocr-progress { width: min(480px, calc(100vw - 32px)); }
+.ocr-status { margin: 0; }
+.ocr-rows { display: flex; flex-direction: column; gap: 4px; max-height: 240px; margin: 0; padding: 0; overflow: auto; list-style: none; }
+.ocr-row { display: grid; grid-template-columns: 80px 1fr 90px; gap: var(--space-2); align-items: center; font-size: var(--text-sm); }
+.ocr-row progress { width: 100%; accent-color: var(--accent); }
+.ocr-row-state { color: var(--text-muted); text-align: right; font-variant-numeric: tabular-nums; }
+.ocr-row.done .ocr-row-state { color: #1d7a3a; }
+.ocr-row.failed .ocr-row-state { color: var(--danger); }
+
+/* Verify: nearly full screen. */
+.dialog.ocr-verify { width: calc(100vw - 48px); max-width: 1400px; height: calc(100vh - 48px); max-height: none; }
+.ocr-verify .dialog-form { display: flex; flex-direction: column; height: 100%; }
+.ocr-verify .dialog-body { flex: 1; min-height: 0; }
+.ocr-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.ocr-nav { display: flex; align-items: center; gap: 4px; }
+.ocr-page-label { min-width: 140px; text-align: center; font-weight: 500; }
+.ocr-stats { color: var(--text-muted); font-size: var(--text-sm); }
+.ocr-legend { display: flex; gap: var(--space-2); font-size: var(--text-sm); }
+.ocr-key { display: inline-flex; align-items: center; gap: 4px; }
+.ocr-key::before { content: ""; width: 10px; height: 10px; border: 2px solid; border-radius: 2px; }
+.ocr-key.conf-high::before { border-color: #1d9a4a; background: rgba(29, 154, 74, .15); }
+.ocr-key.conf-mid::before { border-color: #d48a00; background: rgba(212, 138, 0, .18); }
+.ocr-key.conf-low::before { border-color: #d0102f; background: rgba(208, 16, 47, .18); }
+.ocr-help { margin: 0; font-size: var(--text-sm); }
+.ocr-stage {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--canvas, #e9ecef);
+}
+.ocr-figure { position: relative; width: min(100%, 1100px); margin: 0 auto; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .2); }
+.ocr-image { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+.ocr-words { position: absolute; inset: 0; }
+.ocr-word {
+  position: absolute;
+  padding: 0;
+  border: 1.5px solid;
+  border-radius: 2px;
+  background: transparent;
+  cursor: text;
+}
+.ocr-word.conf-high { border-color: rgba(29, 154, 74, .75); background: rgba(29, 154, 74, .07); }
+.ocr-word.conf-mid { border-color: #d48a00; background: rgba(212, 138, 0, .16); }
+.ocr-word.conf-low { border-color: #d0102f; background: rgba(208, 16, 47, .16); }
+.ocr-word.corrected { border-color: #0050c8; background: rgba(0, 80, 200, .14); }
+.ocr-word:hover { box-shadow: 0 0 0 1px currentColor; }
+.ocr-word:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+.ocr-edit { position: absolute; z-index: 2; height: 28px; padding: 0 6px; transform: translateY(-4px); box-shadow: var(--popover-shadow); }
+.ocr-stage.region-mode .ocr-figure { cursor: crosshair; }
+.ocr-stage.region-mode .ocr-word { pointer-events: none; }
+.ocr-region { position: absolute; border: 1.5px dashed var(--accent); background: var(--accent-soft); pointer-events: none; }
+.ocr-region[hidden], .ocr-busy[hidden] { display: none; }
+.ocr-busy { color: var(--text-muted); font-size: var(--text-sm); }

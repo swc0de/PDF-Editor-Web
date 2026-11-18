@@ -11,7 +11,7 @@ test('loads from file:// with the right title and no console errors', async ({ p
 });
 
 // Tools built so far; everything else must still say "Coming soon".
-const READY = ['read-mode', 'find', 'bookmarks', 'page-thumbnails', 'undo-history', 'organize-pages', 'rotate-pages', 'insert-pages', 'delete-pages', 'combine-files', 'split-document', 'extract-pages', 'properties', 'attachments', 'layers', 'add-text', 'comment', 'highlight', 'draw', 'fill-form', 'add-signature', 'prepare-form', 'flatten-form', 'redact', 'sanitize', 'protect-password', 'print'];
+const READY = ['read-mode', 'find', 'bookmarks', 'page-thumbnails', 'undo-history', 'organize-pages', 'rotate-pages', 'insert-pages', 'delete-pages', 'combine-files', 'split-document', 'extract-pages', 'properties', 'attachments', 'layers', 'add-text', 'comment', 'highlight', 'draw', 'fill-form', 'add-signature', 'prepare-form', 'flatten-form', 'redact', 'sanitize', 'protect-password', 'print', 'ocr'];
 
 test('tool registry holds the complete catalogue; unbuilt tools are "Coming soon"', async ({ page }) => {
   await openApp(page);

@@ -188,7 +188,7 @@ test.describe('panels', () => {
     await expect(tools).toBeVisible();
     await expect(tools.locator('.tools-group-title')).toHaveText(['Read', 'Find', 'Organize', 'Combine & split', 'Protect', 'Forms & layers', 'Scan & OCR', 'Everywhere']);
     await expect(tools.locator('.tool-row[data-tool="read-mode"] .badge')).toHaveCount(0);
-    await expect(tools.locator('.tool-row[data-tool="ocr"] .badge')).toHaveText('Coming soon');
+    await expect(tools.locator('.tool-row[data-tool="accessibility-check"] .badge')).toHaveText('Coming soon');
 
     await tools.getByRole('searchbox').fill('page');
     await expect(tools.locator('.tool-row').first()).toBeVisible();

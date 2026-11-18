@@ -17,6 +17,7 @@ import { registerCommentsPanel } from './ui/panels/comments-panel.js';
 import { registerFormTools } from './tools/forms.js';
 import { registerFieldsPanel } from './ui/panels/fields-panel.js';
 import { registerProtectTools } from './tools/protect.js';
+import { registerOcrTool } from './tools/ocr.js';
 import { registerLayersPanel } from './ui/panels/layers-panel.js';
 import { registerAttachmentsPanel } from './ui/panels/attachments-panel.js';
 import { registerPropertiesPanel } from './ui/panels/properties-panel.js';
@@ -47,6 +48,7 @@ async function start() {
   registerFormTools();
   registerFieldsPanel();
   registerProtectTools();
+  registerOcrTool();
   registerLayersPanel();
   registerAttachmentsPanel();
   registerPropertiesPanel();

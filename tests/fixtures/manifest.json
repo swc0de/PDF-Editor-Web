@@ -259,5 +259,26 @@
     ],
     "hiddenText": "HIDDEN DRAFT TEXT",
     "shownText": "SHOWN LAYER TEXT"
+  },
+  "scanned.pdf": {
+    "pageCount": 2,
+    "dpi": 150,
+    "words": [
+      "capybara",
+      "quetzal"
+    ],
+    "lines": [
+      [
+        "SCANNED REPORT",
+        "The capybara is the largest",
+        "living rodent in the world.",
+        "Invoice 48213 was paid in full."
+      ],
+      [
+        "SECOND PAGE",
+        "The quetzal is a colourful bird",
+        "of the cloud forests."
+      ]
+    ]
   }
 }

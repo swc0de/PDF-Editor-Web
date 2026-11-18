@@ -10,6 +10,7 @@
 // is available that one fixture is skipped (and its tests skip too).
 
 import { writeFile, mkdir, rm } from 'node:fs/promises';
+import zlib from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -605,6 +606,155 @@ async function sanitizeFixture() {
   });
 }
 
+// ------------------------------------------------------------- scanned.pdf
+// Image-only pages, like a scan: text is rasterized from DM Mono's glyph
+// outlines (a small scanline filler, 3×3 supersampled), with paper tone,
+// speckle noise and — on page 2 — a 2° skew. No text layer until OCR.
+const SCAN_DPI = 150;
+const SCAN_PAGES = [
+  { skew: 0, lines: ['SCANNED REPORT', 'The capybara is the largest', 'living rodent in the world.', 'Invoice 48213 was paid in full.'] },
+  { skew: 2, lines: ['SECOND PAGE', 'The quetzal is a colourful bird', 'of the cloud forests.'] },
+];
+
+function rasterizeScan(font, { lines, skew }, seed) {
+  const W = Math.round(8.5 * SCAN_DPI);
+  const H = Math.round(11 * SCAN_DPI);
+  const SS = 3; // supersampling
+  const sizePx = (20 / 72) * SCAN_DPI * SS; // 20 pt text
+  const scale = sizePx / font.unitsPerEm;
+  const cx = (W * SS) / 2;
+  const cy = (H * SS) / 2;
+  const a = (skew * Math.PI) / 180;
+  const rot = (x, y) => [cx + (x - cx) * Math.cos(a) - (y - cy) * Math.sin(a), cy + (x - cx) * Math.sin(a) + (y - cy) * Math.cos(a)];
+  const bands = [];
+  lines.forEach((text, li) => {
+    const baseline = (1.6 + li * 0.55) * SCAN_DPI * SS;
+    let pen = 1.0 * SCAN_DPI * SS;
+    const edges = [];
+    const run = font.layout(text);
+    run.glyphs.forEach((glyph, gi) => {
+      const ox = pen;
+      pen += run.positions[gi].xAdvance * scale;
+      let start = null;
+      let last = null;
+      const pt = (x, y) => rot(ox + x * scale, baseline - y * scale);
+      const line = (p, q) => { if (p[1] !== q[1]) edges.push(p[1] < q[1] ? [p[0], p[1], q[0], q[1], 1] : [q[0], q[1], p[0], p[1], -1]); };
+      for (const c of glyph.path.commands) {
+        const args = c.args;
+        if (c.command === 'moveTo') {
+          if (last && start) line(last, start);
+          start = pt(args[0], args[1]);
+          last = start;
+        } else if (c.command === 'lineTo') {
+          const p = pt(args[0], args[1]);
+          line(last, p);
+          last = p;
+        } else if (c.command === 'quadraticCurveTo' || c.command === 'bezierCurveTo') {
+          const p0 = last;
+          const ctrl = [];
+          for (let k = 0; k < args.length; k += 2) ctrl.push(pt(args[k], args[k + 1]));
+          for (let k = 1; k <= 8; k++) {
+            const t = k / 8;
+            let p;
+            if (ctrl.length === 2) {
+              const u = 1 - t;
+              p = [u * u * p0[0] + 2 * u * t * ctrl[0][0] + t * t * ctrl[1][0], u * u * p0[1] + 2 * u * t * ctrl[0][1] + t * t * ctrl[1][1]];
+            } else {
+              const u = 1 - t;
+              p = [u ** 3 * p0[0] + 3 * u * u * t * ctrl[0][0] + 3 * u * t * t * ctrl[1][0] + t ** 3 * ctrl[2][0],
+                u ** 3 * p0[1] + 3 * u * u * t * ctrl[0][1] + 3 * u * t * t * ctrl[1][1] + t ** 3 * ctrl[2][1]];
+            }
+            line(last, p);
+            last = p;
+          }
+        } else if (c.command === 'closePath') {
+          if (last && start) line(last, start);
+          last = start;
+        }
+      }
+      if (last && start) line(last, start);
+    });
+    const ys = edges.flatMap((e) => [e[1], e[3]]);
+    if (edges.length) bands.push({ edges, y0: Math.floor(Math.min(...ys)), y1: Math.ceil(Math.max(...ys)) });
+  });
+  // Nonzero-winding scanline fill into a supersampled coverage buffer.
+  const SW = W * SS;
+  const ink = new Uint8Array(SW * H * SS);
+  for (const { edges, y0, y1 } of bands) {
+    for (let y = Math.max(0, y0); y <= Math.min(H * SS - 1, y1); y++) {
+      const sy = y + 0.5;
+      const xs = [];
+      for (const [ax, ay, bx, by, dir] of edges) {
+        if (sy >= ay && sy < by) xs.push([ax + ((sy - ay) / (by - ay)) * (bx - ax), dir]);
+      }
+      xs.sort((p, q) => p[0] - q[0]);
+      let wind = 0;
+      for (let k = 0; k < xs.length - 1; k++) {
+        wind += xs[k][1];
+        if (wind !== 0) {
+          const from = Math.max(0, Math.round(xs[k][0]));
+          const to = Math.min(SW, Math.round(xs[k + 1][0]));
+          ink.fill(1, y * SW + from, y * SW + to);
+        }
+      }
+    }
+  }
+  // Downsample to grey, on slightly toned "paper" with deterministic speckles.
+  let rnd = seed;
+  const rand = () => ((rnd = (rnd * 1103515245 + 12345) >>> 0) / 4294967296);
+  const out = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      let n = 0;
+      for (let dy = 0; dy < SS; dy++) for (let dx = 0; dx < SS; dx++) n += ink[(y * SS + dy) * SW + x * SS + dx];
+      const paper = 238 + Math.floor(rand() * 12);
+      let v = Math.round(paper - (n / (SS * SS)) * (paper - 28));
+      if (rand() < 0.0015) v = Math.max(0, v - 120); // speckle
+      out[y * W + x] = v;
+    }
+  }
+  return { W, H, gray: out };
+}
+
+function encodeGrayPng(W, H, gray) {
+  const raw = Buffer.alloc((W + 1) * H);
+  for (let y = 0; y < H; y++) {
+    raw[y * (W + 1)] = 0;
+    Buffer.from(gray.buffer, gray.byteOffset + y * W, W).copy(raw, y * (W + 1) + 1);
+  }
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const td = Buffer.concat([Buffer.from(type, 'latin1'), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(zlib.crc32(td));
+    return Buffer.concat([len, td, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(W, 0);
+  ihdr.writeUInt32BE(H, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 0; // greyscale
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', zlib.deflateSync(raw, { level: 9 })),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+async function scanned() {
+  const font = fontkit.create(readFileSync(join(DIR, '../assets/DMMono-Regular.ttf')));
+  const doc = await newDoc('Scanned document');
+  for (const [i, spec] of SCAN_PAGES.entries()) {
+    const { W, H, gray } = rasterizeScan(font, spec, 1234 + i);
+    const image = await doc.embedPng(encodeGrayPng(W, H, gray));
+    const page = doc.addPage(SIZES.letter);
+    page.drawImage(image, { x: 0, y: 0, width: page.getWidth(), height: page.getHeight() });
+  }
+  await save(doc, 'scanned.pdf', { dpi: SCAN_DPI, words: ['capybara', 'quetzal'], lines: SCAN_PAGES.map((p) => p.lines) });
+}
+
 await mkdir(DIR, { recursive: true });
 console.log('Generating fixtures in tests/fixtures/');
 await multipage();
@@ -620,5 +770,6 @@ await encrypted();
 await large();
 await fonts();
 await sanitizeFixture();
+await scanned();
 await writeFile(join(DIR, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 console.log(`✓ ${Object.keys(manifest).length} fixtures, manifest.json written`);

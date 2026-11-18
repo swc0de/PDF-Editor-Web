@@ -87,7 +87,9 @@ mirrored in `package.json` devDependencies for the tests).
 | [pdf.js](https://mozilla.github.io/pdf.js/) (`pdfjs-dist`) | 6.5.438 | rendering, text, search, outline, forms layer | Apache-2.0 |
 | [pdf-lib](https://pdf-lib.js.org/) | 1.17.1 | all modification and saving | MIT |
 | [fflate](https://github.com/101arrowz/fflate) | 0.8.3 | zipping split outputs | MIT |
-| [Tesseract.js](https://tesseract.projectnaptha.com/) | 7.0.0 | OCR (loaded only when OCR opens) | Apache-2.0 |
+| [Tesseract.js](https://tesseract.projectnaptha.com/) | 7.0.0 | OCR (loaded only when OCR runs) | Apache-2.0 |
+| [tesseract.js-core](https://github.com/naptha/tesseract.js-core) | 7.0.0 | the OCR engine (WebAssembly, LSTM) | Apache-2.0 |
+| `@tesseract.js-data/<lang>` (eng, deu, fra, spa, ita, por, nld, dan, swe, nor, fin, cat) | 1.0.0 | trained data, downloaded per language when chosen | Apache-2.0 |
 | [qpdf](https://qpdf.sourceforge.io/) 12.2.0 as WebAssembly ([`@neslinesli93/qpdf-wasm`](https://github.com/neslinesli93/qpdf-wasm)) | 0.3.1 | password protection: AES-256 encryption, permissions, removing protection (loaded only when used) | Apache-2.0 (qpdf), ISC (build) |
 
 ## Project layout
@@ -341,6 +343,33 @@ their target.
   values) into images in a hidden iframe, each sheet at its page's own size,
   with progress and Cancel. PDFs that don't allow printing say so.
 
+### Scan & OCR (`src/core/ocr.js`, `src/core/ocr-preprocess.js`, `src/ui/ocr/`, `src/core/ops/ocr-ops.js`)
+
+- **Recognize text (OCR)…**: current page / a range / all pages, a language
+  (English by default; others are downloaded the first time they're used),
+  and clean-up options done on the page image before recognition:
+  auto-rotate (picks the 0/90/180/270° orientation Tesseract reads best),
+  straighten (deskew by projection profiles), remove specks (3×3 median) and
+  black-and-white (Otsu). Pages that already have text are skipped unless you
+  untick that. Progress is shown per page; Cancel stops the workers.
+- **Workers.** Pixel clean-up runs in its own Blob worker; recognition runs in
+  up to two Tesseract workers. To work from `file://`, everything Tesseract
+  needs is downloaded on the page and put into the worker's source:
+  tesseract.js-core (so the worker never `importScripts()` it), Tesseract's
+  worker script, and the language data behind a tiny `fetch()` shim — the
+  workers make no network requests.
+- **Verify screen.** The cleaned page image with every word outlined by
+  confidence (green ≥ 85 %, amber ≥ 60 %, red below; corrected words blue).
+  Click a word to correct it; corrections go into a **user dictionary**
+  (preferences, i.e. localStorage) and are applied automatically to later OCR
+  results. "Next to check" walks the uncertain words. **Re-OCR an area**:
+  draw a box; **Re-OCR page** runs the page again.
+- **Apply** adds an invisible text layer (text render mode 3, Helvetica)
+  word by word, each word stretched to its box along its baseline — rotated
+  and deskewed pages included — so the document can be searched, selected
+  and copied. One undo step; running OCR on a page again replaces its
+  earlier OCR layer.
+
 ### Find and navigation
 
 - `view/text-index.js` — indexes each page's text in the background (yielding
@@ -467,6 +496,11 @@ it's skipped and so are its tests.
   signatures use fonts installed on the device, so they look different on
   different systems (the result is saved as an image, so the PDF itself is
   the same everywhere).
+
+- OCR: the invisible text uses Helvetica (WinAnsi), so the languages offered
+  are Latin-script ones; characters outside WinAnsi become "?" in the text
+  layer. Handwriting and complex layouts (tables, columns) are recognized as
+  well as Tesseract manages; check them on the Verify screen.
 
 ## Privacy
 

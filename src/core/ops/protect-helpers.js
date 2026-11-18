@@ -229,3 +229,22 @@ export function redactionMarks(L, H, doc) {
   });
   return marks;
 }
+
+/** Remove an earlier OCR text layer (our marked content streams) from a page. */
+export function removeOcrLayer(L, doc, page) {
+  const { PDFName, PDFArray, PDFStream, PDFRef } = L;
+  const contents = page.node.get(PDFName.of('Contents'));
+  const arr = contents instanceof PDFRef ? doc.context.lookup(contents) : contents;
+  if (!(arr instanceof PDFArray)) return 0;
+  let removed = 0;
+  for (let i = arr.size() - 1; i >= 0; i--) {
+    const ref = arr.get(i);
+    const stream = ref instanceof PDFRef ? doc.context.lookup(ref) : ref;
+    if (stream instanceof PDFStream && stream.dict.get(PDFName.of('PDFEditorOCR'))) {
+      arr.remove(i);
+      if (ref instanceof PDFRef) doc.context.delete(ref);
+      removed++;
+    }
+  }
+  return removed;
+}
