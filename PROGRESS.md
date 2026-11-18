@@ -340,5 +340,5 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 - **Release:** every catalogue tool is built (no "Coming soon"; the smoke test registers a temporary unbuilt tool to test
   that path). `release.spec.mjs` runs `dist/pdf-editor.html` from file:// in a brand-new persistent profile (theme, open,
   find, edit, save, a11y check, recents after restart, only pinned CDN requests). Version 1.0.0 (`core/version.js`,
-  package.json), tag `v1.0.0`.
+  package.json), tag `v1.0.0` (created locally; this session can push the branch but tag pushes are dropped — push it with `git push origin v1.0.0`).
 
