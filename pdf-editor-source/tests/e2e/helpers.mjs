@@ -12,7 +12,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { CDN_BASE, LIBS } from '../../src/core/libs.config.js';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
-export const APP_URL = pathToFileURL(join(ROOT, 'dist/pdf-editor.html')).href;
+// The built app lives at the repository root, next to this source folder.
+export const APP_URL = pathToFileURL(join(ROOT, '../pdf-editor.html')).href;
 export const FIXTURES = join(ROOT, 'tests/fixtures');
 export const manifest = JSON.parse(readFileSync(join(FIXTURES, 'manifest.json'), 'utf8'));
 export const fixture = (name) => join(FIXTURES, name);

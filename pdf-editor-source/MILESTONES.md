@@ -3,7 +3,7 @@
 How to use this:
 1. Put `CLAUDE.md` and this file in an empty project folder.
 2. Start Claude Code there and say: **"Start the project."** It runs `git init`, creates `PROGRESS.md`, and begins M0.
-3. After each milestone it stops and asks for approval. Open `dist/pdf-editor.html`, try it with a few real PDFs, then reply **approved** or say what to change.
+3. After each milestone it stops and asks for approval. Open `pdf-editor.html` (repository root), try it with a few real PDFs, then reply **approved** or say what to change.
 4. Optional: when it's waiting for approval, you can run `/clear` and then say **approved**. It picks up from `PROGRESS.md` with a fresh context, which tends to give better results on later milestones.
 
 The prompts below are what Claude Code follows for each milestone. You don't need to paste them yourself.
@@ -18,7 +18,7 @@ Every prompt ends with the same "Definition of done", repeated in each so you ca
 Read CLAUDE.md. Milestone M0: set up the project skeleton only.
 
 - Create the src/ folder structure from CLAUDE.md (core/, view/, ui/, tools/, i18n/) with an index.html template, a base CSS file with all theme tokens as CSS custom properties (light + dark), and a main.js entry.
-- Write build.mjs (Node, zero deps): it inlines CSS and JS modules into dist/pdf-editor.html, which must work from file://. Choose and document how ES modules are bundled (e.g., a simple concatenating bundler or an import-map + inline module approach). Pin library CDN versions in one config file.
+- Write build.mjs (Node, zero deps): it inlines CSS and JS modules into a single HTML file (now `pdf-editor.html` at the repository root), which must work from file://. Choose and document how ES modules are bundled (e.g., a simple concatenating bundler or an import-map + inline module approach). Pin library CDN versions in one config file.
 - Create the tool registry (id, label, category, shortcut, status, run) and register EVERY tool from CLAUDE.md as status "soon" so the catalogue is complete from day one.
 - Write tests/make-fixtures.mjs to generate all the fixture PDFs listed in CLAUDE.md.
 - Set up Playwright with one smoke test: the page loads, there are no console errors, and the app title is "PDF Editor".
@@ -220,7 +220,7 @@ Read CLAUDE.md. Milestone M12: finish and harden.
 - Performance: profile with a 500-page and a 50 MB PDF; fix long tasks and memory growth (release canvases, cap caches).
 - Visual polish pass: consistent spacing, icon sizes, empty states, loading states, error toasts. Review screenshots of every screen in light and dark, and fix inconsistencies.
 - Remove any remaining "Coming soon" for tools that are now built; list honestly what's still unbuilt.
-- Final check: open dist/pdf-editor.html from file:// in a fresh profile and make sure everything works.
+- Final check: open pdf-editor.html from file:// in a fresh profile and make sure everything works.
 - Update the README with the feature list, limitations and library licenses.
 
 Definition of done: node build.mjs succeeds, all tests pass, no console errors, git commit and tag v1.0.0. Give me a final report: what works, known limitations, and suggested next steps.

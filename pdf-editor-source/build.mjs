@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // build.mjs — zero-dependency build for PDF Editor.
 //
-// Produces dist/pdf-editor.html: ONE self-contained file that works from
+// Produces ../pdf-editor.html (at the repository root): ONE self-contained file that works from
 // file://. How it works:
 //
 //   CSS  Every <link rel="stylesheet" href="…"> in src/index.html is replaced
@@ -28,7 +28,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const SRC = join(ROOT, 'src');
-const OUT_DIR = join(ROOT, 'dist');
+// The deliverable sits at the top of the repository, next to this source folder.
+const OUT_DIR = join(ROOT, '..');
 const OUT = join(OUT_DIR, 'pdf-editor.html');
 const ENTRY = 'main.js';
 const PREFIX = '@app/';
@@ -175,14 +176,14 @@ async function main() {
       `<script type="application/json" id="app-modules">${payload}</script>\n` +
       `  <script>${BOOTSTRAP}</script>`,
   );
-  html = html.replace('<head>', `<head>\n  <!-- PDF Editor ${pkg.version} — built by build.mjs. Edit src/, not this file. -->`);
+  html = html.replace('<head>', `<head>\n  <!-- PDF Editor ${pkg.version} — built by build.mjs. Edit pdf-editor-source/src/, not this file. -->`);
 
   await mkdir(OUT_DIR, { recursive: true });
   await writeFile(OUT, html);
   const size = (await stat(OUT)).size;
   const ms = Math.round(performance.now() - started);
   console.log(
-    `✓ dist/pdf-editor.html  ${(size / 1024).toFixed(1)} KB  ` +
+    `✓ pdf-editor.html  ${(size / 1024).toFixed(1)} KB  ` +
       `(${Object.keys(modules).length} modules, ${cssFiles.length} stylesheets, ${ms} ms)`,
   );
 }

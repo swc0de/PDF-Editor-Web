@@ -342,3 +342,11 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
   find, edit, save, a11y check, recents after restart, only pinned CDN requests). Version 1.0.0 (`core/version.js`,
   package.json), tag `v1.0.0` (created locally; this session can push the branch but tag pushes are dropped — push it with `git push origin v1.0.0`).
 
+### Repository layout change (requested during M12 review)
+- The finished single file is now **`pdf-editor.html` at the repository root** (was `dist/pdf-editor.html`); `dist/` is
+  gone. Everything else moved into **`pdf-editor-source/`**: `src/`, `tests/`, `build.mjs`, `package.json`,
+  `package-lock.json`, `playwright.config.mjs`, `MILESTONES.md`, `PROGRESS.md`, and the developer `README.md`. A short
+  user-facing `README.md` is at the root; `CLAUDE.md` stays at the root (Claude Code reads it there) with updated paths.
+- `build.mjs` writes `../pdf-editor.html`; tests open it via `APP_URL = ../pdf-editor.html`. Run `node build.mjs`,
+  `npm install` and `npm test` inside `pdf-editor-source/`.
+

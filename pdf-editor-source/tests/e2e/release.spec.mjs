@@ -1,4 +1,4 @@
-// M12 — final check: dist/pdf-editor.html from file:// in a brand-new browser
+// M12 — final check: the built pdf-editor.html from file:// in a brand-new browser
 // profile, like a first-time user: it starts, follows the system theme, opens
 // and edits a PDF, remembers it in Recent files across a restart, and makes no
 // network requests except pinned library downloads from the CDN.
