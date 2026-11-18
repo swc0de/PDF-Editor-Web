@@ -54,7 +54,7 @@ test.describe('tabs', () => {
     // Close outline.pdf with its × after moving it to page 7.
     await tabs(page).filter({ hasText: 'outline.pdf' }).click();
     await app(page, () => window.pdfEditor.app.viewer.goToPage(7));
-    await page.getByRole('button', { name: 'Close outline.pdf' }).click();
+    await page.locator('.tab-item').filter({ hasText: 'outline.pdf' }).locator('.tab-close').click();
     await expect(tabs(page)).toHaveCount(2);
 
     // Reopen it: same page comes back.
@@ -87,11 +87,11 @@ test.describe('tabs', () => {
     await openFixture(page, 'multipage.pdf');
     await app(page, () => window.pdfEditor.app.rotateCurrentPage(90));
     await expect(page.locator('.tab-item.active .tab-dirty')).toBeVisible();
-    await page.getByRole('button', { name: 'Close multipage.pdf' }).click();
+    await page.locator('.tab-item').filter({ hasText: 'multipage.pdf' }).locator('.tab-close').click();
     const dialog = page.getByRole('dialog', { name: 'Save changes to “multipage.pdf”?' });
     await dialog.getByRole('button', { name: 'Cancel' }).click();
     await expect(tabs(page)).toHaveCount(1);
-    await page.getByRole('button', { name: 'Close multipage.pdf' }).click();
+    await page.locator('.tab-item').filter({ hasText: 'multipage.pdf' }).locator('.tab-close').click();
     await page.getByRole('dialog').getByRole('button', { name: 'Don’t save' }).click();
     await expect(tabs(page)).toHaveCount(0);
   });
@@ -188,7 +188,7 @@ test.describe('panels', () => {
     await expect(tools).toBeVisible();
     await expect(tools.locator('.tools-group-title')).toHaveText(['Read', 'Find', 'Organize', 'Combine & split', 'Protect', 'Forms & layers', 'Scan & OCR', 'Everywhere']);
     await expect(tools.locator('.tool-row[data-tool="read-mode"] .badge')).toHaveCount(0);
-    await expect(tools.locator('.tool-row[data-tool="accessibility-check"] .badge')).toHaveText('Coming soon');
+    await expect(tools.locator('.tool-row .badge')).toHaveCount(0); // every tool is built
 
     await tools.getByRole('searchbox').fill('page');
     await expect(tools.locator('.tool-row').first()).toBeVisible();
@@ -269,7 +269,7 @@ test.describe('command palette', () => {
     // Tools are listed, unbuilt ones marked.
     await input.fill('accessibility checker');
     await expect(options.first()).toContainText('Accessibility checker');
-    await expect(options.first()).toContainText('Coming soon');
+    await expect(options.first()).not.toContainText('Coming soon');
 
     // Arrow keys move the active option.
     await input.fill('zoom');

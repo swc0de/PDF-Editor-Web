@@ -241,10 +241,10 @@ export class FormEditor extends EventTarget {
 
   // ------------------------------------------------------------ actions
 
-  async editProperties() {
+  async editProperties(fieldName) {
     const tab = this.tab;
-    const name = this.selection?.tabId === tab?.id ? this.selection.name : null;
-    if (!name) return;
+    const name = fieldName ?? (this.selection?.tabId === tab?.id ? this.selection.name : null);
+    if (!name || !tab || tab.model.readOnly) return;
     const info = await tab.model.query('fieldInfo', { name }).catch(() => null);
     if (!info) return;
     const prefix = info.name.slice(0, info.name.length - info.partialName.length);
@@ -254,6 +254,7 @@ export class FormEditor extends EventTarget {
     if (!changes || !Object.keys(changes).length) return;
     const result = await this.app.edit(tab, 'setFieldProps', { name: info.name, ...changes }, t('step.fieldProps', { name: info.name }));
     if (result?.name && this.selection) this.selection.name = result.name;
+    return result;
   }
 
   async deleteSelected() {

@@ -41,7 +41,8 @@ export function openShortcuts() {
   return openDialog({
     title: t('shortcuts.title'),
     className: 'shortcuts-dialog',
-    body: h('table.shortcuts-table', h('tbody', rows)),
+    // Focusable so keyboard users can scroll it.
+    body: h('div.shortcuts-scroll', { tabIndex: 0, role: 'region', 'aria-label': t('shortcuts.title') }, h('table.shortcuts-table', h('tbody', rows))),
     actions: [{ label: t('common.close'), value: true, primary: true }],
     cancelValue: true,
   });

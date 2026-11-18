@@ -187,6 +187,7 @@
 .splitter.dragging::after,
 .splitter:focus-visible::after { background: var(--accent); }
 .splitter:focus-visible { box-shadow: none; }
+.splitter:focus-visible::after { inset: 0 1px; } /* a 3 px bar: easy to see */
 .resizing, .resizing * { cursor: col-resize !important; user-select: none !important; }
 
 /* Read mode: everything but the pages goes away. */

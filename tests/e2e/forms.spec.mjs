@@ -167,10 +167,10 @@ test.describe('forms and signatures', () => {
     await expect(page.locator('.field-selection')).toBeVisible();
     await bar.getByRole('button', { name: 'Properties…' }).click();
     let dialog = page.getByRole('dialog', { name: 'Text field properties' });
-    await dialog.getByLabel('Name').fill('bad.name');
+    await dialog.getByLabel('Name', { exact: true }).fill('bad.name');
     await dialog.getByRole('button', { name: 'Apply' }).click();
     await expect(dialog.getByRole('alert')).toContainText('can’t contain');
-    await dialog.getByLabel('Name').fill('email');
+    await dialog.getByLabel('Name', { exact: true }).fill('email');
     await dialog.getByLabel('Required').check();
     await dialog.getByLabel('Default value').fill('me@example.com');
     await dialog.getByRole('button', { name: 'Apply' }).click();

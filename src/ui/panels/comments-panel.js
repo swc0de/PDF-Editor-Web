@@ -117,7 +117,7 @@ export function registerCommentsPanel() {
         onclick: () => annotator.activate('note'),
       }, icon('stickyNote', { size: 14 }), t('comments.addNote'));
       const count = h('span.muted.comments-count', { role: 'status' });
-      const list = h('div.comments-list', { role: 'list', 'aria-label': t('panel.comments.label') });
+      const list = h('div.comments-list', { 'aria-label': t('panel.comments.label') });
       const body = h('div.comments-body', list);
       container.append(
         h('div.panel-toolbar', addBtn, h('span.dialog-spacer'), count),
@@ -309,9 +309,12 @@ export function registerCommentsPanel() {
           if (groups.at(-1)?.page !== th.page) groups.push({ page: th.page, items: [] });
           groups.at(-1).items.push(th);
         }
-        list.replaceChildren(...groups.map((g) => h('div.comment-group', { role: 'presentation' },
-          h('div.comment-page', { role: 'heading', 'aria-level': '3' }, t('comments.page', { label: tab.viewer.pageLabel(g.page) })),
-          g.items.map(threadEl))));
+        list.replaceChildren(...groups.map((g) => {
+          const headingId = `comments-page-${tab.id}-${g.page}`;
+          return h('section.comment-group', { 'aria-labelledby': headingId },
+            h('h3.comment-page', { id: headingId }, t('comments.page', { label: tab.viewer.pageLabel(g.page) })),
+            h('div.comment-group-list', { role: 'list' }, g.items.map(threadEl)));
+        }));
         body.replaceChildren(list);
         addBtn.disabled = !!tab.model.readOnly;
       }

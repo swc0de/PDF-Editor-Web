@@ -75,6 +75,7 @@ export function createTabStrip({ onActivate, onClose, onContextMenu, onOpen }) {
         id: `tab-${tab.id}`,
         'aria-selected': String(active),
         'aria-controls': `tabpanel-${tab.id}`,
+        'aria-keyshortcuts': 'Delete',
         tabindex: active || (activeId === null && tab === tabs[0]) ? '0' : '-1',
         title: tab.dirty ? `${tab.name} — ${t('tabs.unsaved')}` : tab.name,
         dataset: { tabId: tab.id },
@@ -88,9 +89,13 @@ export function createTabStrip({ onActivate, onClose, onContextMenu, onOpen }) {
         h('span.tab-name', tab.name),
         tab.dirty ? h('span.tab-dirty', { 'aria-label': t('tabs.unsaved'), role: 'img' }) : null,
       );
+      // Mouse convenience only: the tab itself closes with Delete or Ctrl/⌘+W
+      // (and has a context menu), so the button stays out of the tablist's
+      // accessibility tree.
       const close = h('button.tab-close', {
         type: 'button',
         tabindex: '-1',
+        'aria-hidden': 'true',
         'aria-label': t('tabs.closeNamed', { name: tab.name }),
         title: `${t('tabs.close')} (${formatShortcut('Mod+W')})`,
         onclick: (e) => {

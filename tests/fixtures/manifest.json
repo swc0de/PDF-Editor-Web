@@ -280,5 +280,17 @@
         "of the cloud forests."
       ]
     ]
+  },
+  "a11y.pdf": {
+    "pageCount": 22,
+    "figuresWithoutAlt": [
+      1
+    ],
+    "unnamedFields": [
+      "email"
+    ],
+    "imageOnlyPages": [
+      3
+    ]
   }
 }

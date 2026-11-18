@@ -6,11 +6,14 @@ import { t } from '../../i18n/index.js';
 import { openDialog } from '../dialog.js';
 
 export async function openFieldDialog({ info, otherNames }) {
-  const name = h('input.input', { type: 'text', name: 'name', value: info.partialName, required: true, autocomplete: 'off', spellcheck: false });
-  const nameError = h('span.field-error', { role: 'alert' });
+  const name = h('input.input', { type: 'text', id: 'field-prop-name', name: 'name', value: info.partialName, required: true, autocomplete: 'off', spellcheck: false, 'aria-describedby': 'field-prop-name-error' });
+  // The error is described-by, not inside the label (that would change the field's name).
+  const nameError = h('span.field-error', { role: 'alert', id: 'field-prop-name-error' });
   const required = h('input', { type: 'checkbox', name: 'required', checked: info.required });
+  const tooltip = h('input.input', { type: 'text', name: 'tooltip', value: info.tooltip ?? '', autocomplete: 'off' });
   const rows = [
-    h('label.field', h('span.field-label', t('fieldProps.name')), name, nameError),
+    h('div.field', h('label.field-label', { htmlFor: 'field-prop-name' }, t('fieldProps.name')), name, nameError),
+    h('label.field', h('span.field-label', t('fieldProps.tooltip')), tooltip, h('span.field-help', t('fieldProps.tooltipHelp'))),
     h('label.check', required, t('fieldProps.required')),
   ];
   let defaultInput = null;
@@ -59,6 +62,7 @@ export async function openFieldDialog({ info, otherNames }) {
       const changes = {};
       if (newName !== info.partialName) changes.newName = newName;
       if (required.checked !== info.required) changes.required = required.checked;
+      if (tooltip.value.trim() !== (info.tooltip ?? '').trim()) changes.tooltip = tooltip.value.trim();
       if (optionsInput) {
         const opts = optionsInput.value.split('\n').map((s) => s.trim()).filter(Boolean);
         if (opts.join('\n') !== (info.options ?? []).join('\n')) changes.options = opts;

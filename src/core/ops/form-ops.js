@@ -48,7 +48,9 @@ export function fieldInfo(PDFLib, doc, args, { helpers: H }) {
   let defaultValue = null;
   if (dv instanceof PDFString || dv instanceof PDFHexString) defaultValue = dv.decodeText();
   else if (dv instanceof PDFName) defaultValue = kind === 'checkbox' ? dv.decodeText() !== 'Off' : dv.decodeText();
+  const tu = field.acroField.dict.lookup(PDFName.of('TU'));
   const info = {
+    tooltip: tu instanceof PDFString || tu instanceof PDFHexString ? tu.decodeText() : '',
     name: field.getName(),
     partialName: field.acroField.getPartialName() ?? field.getName(),
     kind,
@@ -121,6 +123,12 @@ export function setFieldProps(PDFLib, doc, args, { helpers: H }) {
     const prefix = field.getName().slice(0, field.getName().length - (field.acroField.getPartialName() ?? '').length);
     if (form.getFields().some((f) => f !== field && f.getName() === prefix + partial)) throw new Error(`A field named “${prefix + partial}” already exists`);
     field.acroField.setPartialName(partial);
+  }
+  if (args.tooltip !== undefined) {
+    // The field's accessible name (read by screen readers, shown as a tooltip).
+    const tip = String(args.tooltip).trim();
+    if (tip) field.acroField.dict.set(PDFName.of('TU'), PDFHexString.fromText(tip));
+    else field.acroField.dict.delete(PDFName.of('TU'));
   }
   if (args.required !== undefined) {
     if (args.required) field.enableRequired();

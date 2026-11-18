@@ -8,6 +8,8 @@
 import { canvasToBlob } from './canvas-encode.js';
 
 const RENDER_WIDTH = 180; // CSS px; smaller sizes scale down
+/** Most thumbnails kept per tab (least recently used ones are dropped). */
+export const MAX_THUMBS = 600;
 
 function state(tab) {
   if (!tab.thumbs) {
@@ -30,7 +32,12 @@ export async function getThumb(tab, index) {
   const key = page.ref ? `${page.ref.num}-${page.ref.gen}-${rotation}-${layers}` : `i${index}-${rotation}-${layers}`;
   tab.thumbKeys[index] = key;
   const cached = tab.thumbs.get(key);
-  if (cached) return cached;
+  if (cached) {
+    // Map order is our LRU order: move to the end.
+    tab.thumbs.delete(key);
+    tab.thumbs.set(key, cached);
+    return cached;
+  }
 
   const vp1 = page.getViewport({ scale: 1, rotation });
   const scale = (RENDER_WIDTH * Math.min(2, window.devicePixelRatio || 1)) / vp1.width;
@@ -46,6 +53,11 @@ export async function getThumb(tab, index) {
   if (!blob) return null;
   const url = URL.createObjectURL(blob);
   tab.thumbs.set(key, url);
+  while (tab.thumbs.size > MAX_THUMBS) {
+    const [oldKey, oldUrl] = tab.thumbs.entries().next().value;
+    URL.revokeObjectURL(oldUrl);
+    tab.thumbs.delete(oldKey);
+  }
   return url;
 }
 

@@ -10,10 +10,10 @@ test('loads from file:// with the right title and no console errors', async ({ p
   await expect(page.locator('.home-privacy')).toHaveText('Your files never leave this device');
 });
 
-// Tools built so far; everything else must still say "Coming soon".
-const READY = ['read-mode', 'find', 'bookmarks', 'page-thumbnails', 'undo-history', 'organize-pages', 'rotate-pages', 'insert-pages', 'delete-pages', 'combine-files', 'split-document', 'extract-pages', 'properties', 'attachments', 'layers', 'add-text', 'comment', 'highlight', 'draw', 'fill-form', 'add-signature', 'prepare-form', 'flatten-form', 'redact', 'sanitize', 'protect-password', 'print', 'ocr'];
+// Every tool in the catalogue is built (M12); a tool that isn't would say "Coming soon".
+const READY = ['read-mode', 'find', 'bookmarks', 'page-thumbnails', 'undo-history', 'organize-pages', 'rotate-pages', 'insert-pages', 'delete-pages', 'combine-files', 'split-document', 'extract-pages', 'properties', 'attachments', 'layers', 'add-text', 'comment', 'highlight', 'draw', 'fill-form', 'add-signature', 'prepare-form', 'flatten-form', 'redact', 'sanitize', 'protect-password', 'print', 'ocr', 'accessibility-check'];
 
-test('tool registry holds the complete catalogue; unbuilt tools are "Coming soon"', async ({ page }) => {
+test('tool registry holds the complete catalogue; every tool is built', async ({ page }) => {
   await openApp(page);
   const info = await page.evaluate(() => {
     const { registry } = window.pdfEditor;
@@ -40,7 +40,7 @@ test('tool registry holds the complete catalogue; unbuilt tools are "Coming soon
   const cards = page.locator('.catalogue .tool-card');
   await expect(cards).toHaveCount(info.tools.length);
   await expect(page.locator('.catalogue .tool-card .badge')).toHaveCount(info.tools.length - READY.length);
-  await expect(page.locator('.catalogue .tool-card .badge').first()).toHaveText('Coming soon');
+  expect(info.tools.every((t) => t.status === 'ready')).toBe(true);
   const labels = await page.locator('.catalogue .tool-label').allTextContents();
   for (const label of labels) expect(label).not.toMatch(/^tool\./); // i18n key leaked
   // 8 category headings in order
@@ -51,12 +51,19 @@ test('tool registry holds the complete catalogue; unbuilt tools are "Coming soon
 
 test('runTool refuses tools that are not built yet', async ({ page }) => {
   await openApp(page);
-  const result = await page.evaluate(() => window.pdfEditor.registry.runTool('accessibility-check'));
+  // Every catalogue tool is built now, so register an unbuilt one for the test.
+  const result = await page.evaluate(() => {
+    const { registry } = window.pdfEditor;
+    registry.defineTool({ id: 'test-unbuilt', category: 'everywhere', icon: 'info', milestone: 'M99', label: 'tool.print.label', description: 'tool.print.desc' });
+    return registry.runTool('test-unbuilt');
+  });
   expect(result).toEqual({ ok: false, reason: 'soon' });
-  // Clicking a "Coming soon" card does nothing harmful.
+  // Its card says "Coming soon"; clicking it does nothing harmful.
   // (force: Playwright won't click aria-disabled elements by default)
-  await page.locator('[data-tool="accessibility-check"]').first().click({ force: true });
-  await expect(page.locator('.toast')).toContainText('“Accessibility checker” is coming soon.');
+  const card = page.locator('.catalogue [data-tool="test-unbuilt"]');
+  await expect(card.locator('.badge')).toHaveText('Coming soon');
+  await card.click({ force: true });
+  await expect(page.locator('.toast')).toContainText('is coming soon.');
   await expect(page.locator('#home')).toBeVisible();
 });
 
@@ -123,3 +130,14 @@ test('no stray "null"/"undefined" text anywhere in the UI', async ({ page }) => 
     expect(await strays(), panel).toEqual([]);
   }
 });
+
+test('the command palette shows every command with a translated group (no raw keys)', async ({ page }) => {
+  await openApp(page);
+  const items = await page.evaluate(() => window.pdfEditor.app.paletteItems());
+  expect(items.length).toBeGreaterThan(50);
+  for (const it of items) {
+    expect(it.group ?? '', it.id).not.toMatch(/^[a-z]+(\.[\w-]+)+$/);
+    expect(it.label ?? '', it.id).not.toMatch(/^[a-z]+(\.[\w-]+)+$/);
+  }
+});
+

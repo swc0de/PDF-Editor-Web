@@ -523,7 +523,7 @@ export class App extends EventTarget {
       icon('x', { size: 14 }), t('readMode.exit'));
     this.readModeExit = exit;
     document.body.append(exit);
-    toast(t('readMode.hint'), { timeout: 2500 });
+    this.readModeHint = toast(t('readMode.hint'), { timeout: 2500 });
     this.viewer?.focus();
   }
 
@@ -532,6 +532,9 @@ export class App extends EventTarget {
     this.readMode = false;
     document.documentElement.classList.remove('read-mode');
     this.readModeExit?.remove();
+    // The "press Esc to exit" hint has done its job.
+    this.readModeHint?.close();
+    this.readModeHint = null;
     this.viewer?.focus();
   }
 

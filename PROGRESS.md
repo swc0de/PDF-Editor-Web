@@ -16,7 +16,7 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 | M9 | Forms and signatures | approved |
 | M10 | Protect, redact, print | approved |
 | M11 | Scan & OCR | approved |
-| M12 | Accessibility checker, polish and final audit | in progress |
+| M12 | Accessibility checker, polish and final audit | awaiting approval |
 
 ## Environment notes (for any session)
 
@@ -316,4 +316,29 @@ Memory between sessions. Statuses: `todo` · `in progress` · `awaiting approval
 - **Tests:** `ocr.spec.mjs` (4: recognize → correct → apply → find "capybara"/"quetzal"/corrected word/phrase across
   lines, saved file text, undo; dictionary + region/page re-OCR + cancel; skip pages with text; dark screenshots),
   `tests/unit/ocr-preprocess.spec.mjs` (2), `tests/unit/ocr-ops.spec.mjs` (1).
+
+### M12 — Accessibility checker, polish and final audit (awaiting approval)
+- **Accessibility Checker** (`ui/a11y-check.js`, tool `accessibility-check`): query op `accessibilityInfo` (pdf-lib:
+  StructTreeRoot/MarkInfo, Lang, Info Title, ViewerPreferences/DisplayDocTitle, outline, figures via structure tree with
+  RoleMap, pages with image XObjects, fields + `/TU`) + pdf.js text per page (textless pages). Fixes: `setLanguage`,
+  `setDisplayDocTitle`, field Accessible name (new `tooltip` in fieldInfo/setFieldProps and the field dialog), title →
+  Properties panel, OCR. Fixture `a11y.pdf` (tagged, 22 pages, one figure without alt, unnamed field, image-only page).
+- **UI audit:** `audit.spec.mjs` — axe-core 4.10.3 (devDependency, injected from disk) over home, every panel, find,
+  editing/form/redaction toolbars, organizer and 12 dialogs, light + dark: 0 violations. Fixed: close buttons inside the
+  tablist (now aria-hidden, mouse-only; tabs close with Delete/Ctrl+W, `aria-keyshortcuts`), Comments list structure
+  (section + h3 + list per page), "Saved" badge contrast (solid `--success` + `--success-contrast`), shortcuts dialog scroll
+  region focusable, splitter focus bar 3 px. Keyboard-only walkthrough test: Tab reaches every region with a visible ring;
+  tools and dialogs open from the keyboard. Field dialog error moved out of the label (aria-describedby).
+- **i18n:** `tests/unit/i18n-literals.spec.mjs` (no hard-coded UI strings; self-check that it catches them); e2e harness now
+  fails on `[i18n] missing string` warnings — found and fixed missing palette groups (`menu.annotate|formEdit|ocr|organize|
+  protect|redact`).
+- **Bug fixed:** `h()` assigned read-only DOM properties (`input.list`) — now set as attributes (`ATTRIBUTES_ONLY`).
+- **Performance:** new tests — generated 51 MB PDF (open ≈ 0.9 s, worst stall ≈ 75 ms) and 8 open/close cycles (heap flat,
+  no leftover canvases/viewers). PageView.release() calls `proxy.cleanup()`; thumbnail cache capped (LRU, 600). 500-page
+  scroll: 0 stalls over 50 ms.
+- **Polish:** contact sheets of every screen in both themes reviewed; read-mode hint toast closes on exit.
+- **Release:** every catalogue tool is built (no "Coming soon"; the smoke test registers a temporary unbuilt tool to test
+  that path). `release.spec.mjs` runs `dist/pdf-editor.html` from file:// in a brand-new persistent profile (theme, open,
+  find, edit, save, a11y check, recents after restart, only pinned CDN requests). Version 1.0.0 (`core/version.js`,
+  package.json), tag `v1.0.0`.
 

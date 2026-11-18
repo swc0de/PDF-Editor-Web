@@ -270,7 +270,7 @@ test.describe('unsaved-change guards', () => {
 
     await rotate(page); // multipage.pdf
     await page.evaluate(() => window.pdfEditor.app.autosave.runNow());
-    await page.getByRole('button', { name: 'Close multipage.pdf' }).click();
+    await page.locator('.tab-item').filter({ hasText: 'multipage.pdf' }).locator('.tab-close').click();
     await page.getByRole('dialog').getByRole('button', { name: 'Don’t save' }).click();
     await expect(tabs(page)).toHaveCount(0);
     // Don't save also drops its autosave: nothing to recover.

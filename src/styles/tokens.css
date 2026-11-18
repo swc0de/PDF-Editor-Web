@@ -64,6 +64,7 @@
   --badge-text: #4e5964;
   --danger: #b70228;
   --success: #1d7a45;
+  --success-contrast: #ffffff;
   --warning: #9a6200;
 }
 
@@ -89,5 +90,6 @@
   --badge-text: #b7c0c7;
   --danger: #ff6b84;
   --success: #4cc27f;
+  --success-contrast: #0d1f15;
   --warning: #f0b44c;
 }

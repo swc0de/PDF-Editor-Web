@@ -371,7 +371,7 @@ test.describe('opening', () => {
     await expect.poll(() => page.evaluate(() => window.__pickerOpened)).toBe(2);
     await openFixture(page, 'multipage.pdf');
     await waitRendered(page, 1);
-    await page.getByRole('button', { name: 'Close multipage.pdf' }).click();
+    await page.locator('.tab-item').filter({ hasText: 'multipage.pdf' }).locator('.tab-close').click();
     await expect(page.locator('#home')).toBeVisible();
     await expect(page.locator('.statusbar')).toHaveCount(0);
     await expect(page).toHaveTitle('PDF Editor');

@@ -17,7 +17,7 @@ export const FIXTURES = join(ROOT, 'tests/fixtures');
 export const manifest = JSON.parse(readFileSync(join(FIXTURES, 'manifest.json'), 'utf8'));
 export const fixture = (name) => join(FIXTURES, name);
 
-const MIME = {
+export const MIME = {
   '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json',
   '.wasm': 'application/wasm', '.css': 'text/css', '.map': 'application/json',
 };
@@ -81,6 +81,8 @@ export const test = base.extend({
   page: async ({ page, problems }, use) => {
     page.on('console', (msg) => {
       if (msg.type() === 'error') problems.console.push(`console.error: ${msg.text()}`);
+      // A missing translation shows a raw key to the user: treat it as an error too.
+      if (msg.type() === 'warning' && msg.text().startsWith('[i18n] missing string')) problems.console.push(msg.text());
     });
     page.on('pageerror', (err) => problems.console.push(`pageerror: ${err.message}`));
     await use(page);

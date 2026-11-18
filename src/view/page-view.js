@@ -421,6 +421,12 @@ export class PageView {
   /** Free canvases and layers (the placeholder stays, at the right size). */
   release({ keepForm = false } = {}) {
     this.cancel();
+    // Let pdf.js drop this page's parsed content (operator lists, images) too.
+    try {
+      this.proxy?.cleanup();
+    } catch {
+      /* a render is still finishing: pdf.js keeps it */
+    }
     if (!keepForm) {
       this.formLayer?.el.remove();
       this.formLayer = null;

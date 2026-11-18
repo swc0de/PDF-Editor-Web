@@ -5,8 +5,45 @@ A full-featured PDF editor delivered as **one self-contained HTML file**:
 uploads. Everything runs locally; the only network requests are library
 downloads from jsDelivr at pinned versions.
 
-> Status: under construction, milestone by milestone. See `PROGRESS.md` for
-> where things stand and `MILESTONES.md` for the plan.
+> **Version 1.0.0.** Every tool in the catalogue is built. `PROGRESS.md`
+> records how it was built, milestone by milestone.
+
+## Features
+
+- **Read:** fast, virtualized viewing of very large PDFs (500 pages open in
+  well under a second), zoom and fit modes, single / continuous / two-up
+  layouts, rotation, read mode, links, page labels, damaged pages shown as
+  error tiles while the rest of the document works.
+- **Find & navigate:** find bar with match count, case and whole-word options;
+  bookmarks; page thumbnails; back/forward history.
+- **Edit with undo:** every change is a named undo step (Undo History panel);
+  autosave and crash recovery; recent files; save back to the original file
+  where the browser allows it.
+- **Organize pages:** reorder (drag), rotate, insert (blank or from another
+  PDF), duplicate, delete, extract.
+- **Combine & split:** merge PDFs (with bookmarks), split by page count,
+  ranges or bookmarks (downloaded as a zip).
+- **Information:** document properties (editable title, author, subject,
+  keywords), attachments (open, save, add, remove), layers (show/hide).
+- **Text and comments (like Word):** draw a text box and type, with font,
+  size, bold/italic/underline, alignment, colour, fill and border; highlight,
+  underline, strike out; sticky notes; rectangles, ellipses, lines, arrows,
+  freehand drawing; a Comments panel with replies, resolve, filters.
+- **Forms:** fill every field type, highlight fields, Fields panel, prepare
+  forms (add text fields, checkboxes, dropdowns, signature fields), flatten.
+- **Signatures:** draw, type or upload a visual signature, saved for reuse.
+- **Protect:** redaction that really removes content, sanitize (metadata,
+  scripts, attachments, hidden layers, comments), AES-256 password protection
+  and removal (qpdf in WebAssembly), print with page ranges and quality.
+- **Scan & OCR:** Tesseract OCR with clean-up (deskew, denoise, binarize,
+  auto-rotate), a Verify screen to correct words, and an invisible text layer
+  that makes scans searchable.
+- **Accessibility:** an Accessibility Checker for documents (tags, title,
+  language, alt text, field names, bookmarks, scanned pages, with fixes where
+  possible) — and an app that is keyboard-operable, with ARIA roles and
+  WCAG 2.1 AA contrast in both themes (checked with axe-core in the tests).
+- **Everywhere:** command palette (Ctrl/⌘+K), keyboard shortcuts, light and
+  dark themes, all strings in `src/i18n` (English for now).
 
 ## Use it
 
@@ -48,7 +85,17 @@ What the harness enforces on **every** end-to-end test (`tests/e2e/helpers.mjs`)
 - no network request other than the pinned jsDelivr URLs;
 - jsDelivr requests are answered from `node_modules`, so tests run offline and
   deterministically. The installed package version must equal the pinned
-  version, or the test fails.
+  version, or the test fails;
+- no missing translation (a `[i18n] missing string` warning fails the test).
+
+Other suites: `tests/e2e/audit.spec.mjs` runs [axe-core](https://github.com/dequelabs/axe-core)
+(test-only, MPL-2.0) over every screen, panel, toolbar and dialog in both
+themes (WCAG 2.1 A/AA, contrast included) plus a keyboard-only walkthrough;
+`tests/unit/i18n-literals.spec.mjs` fails on hard-coded user-facing strings;
+`tests/e2e/performance.spec.mjs` checks main-thread stalls and memory with a
+500-page PDF, a generated 50 MB PDF and repeated open/close;
+`tests/e2e/release.spec.mjs` runs the built file from `file://` in a brand-new
+browser profile.
 
 ## How the single-file build works
 
@@ -370,6 +417,19 @@ their target.
   and copied. One undo step; running OCR on a page again replaces its
   earlier OCR layer.
 
+### Accessibility Checker (`src/ui/a11y-check.js`, `src/core/ops/a11y-ops.js`)
+
+Reports, each as passed / to fix / to review / not applicable, with links to
+the pages concerned: tagged PDF (structure tree + MarkInfo), document title
+(and whether viewers show it), document language, figures without
+alternative text (from the structure tree, role-map aware; for untagged
+documents, the pages with images), form fields without an accessible name
+(`/TU`), bookmarks in documents over 20 pages, and pages with no text
+(scans). Fixes where PDF Editor can make them, each an undo step: set the
+language, show the title in the window, name a field (Accessible name in the
+field's properties), open Properties to add a title, run OCR. It never
+pretends to add tags or alt text it can't.
+
 ### Find and navigation
 
 - `view/text-index.js` — indexes each page's text in the background (yielding
@@ -438,8 +498,14 @@ it's skipped and so are its tests.
 
 ## Known limitations
 
-- Only Chromium is covered by the automated tests. Safari trackpad pinch uses
+- Only Chromium is covered by the automated tests. Firefox and Safari should
+  work (standard APIs only) but aren't tested; Safari trackpad pinch uses
   `gesture*` events and is untested.
+- The interface is in English only (all strings are in `src/i18n`, ready for
+  more languages).
+- No editing of a PDF's existing text or images (add text boxes instead), and
+  no tagging: the Accessibility Checker reports untagged documents but can't
+  tag them.
 - Links: URL links and destinations work; PDF named actions and JavaScript
   actions are not executed.
 - Text selection follows the order of text in the PDF's content stream (what

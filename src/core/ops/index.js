@@ -9,10 +9,11 @@ import * as formHelpers from './form-helpers.js';
 import * as protectOps from './protect-ops.js';
 import * as protectHelpers from './protect-helpers.js';
 import * as ocrOps from './ocr-ops.js';
+import * as a11yOps from './a11y-ops.js';
 import * as helpers from './pdf-helpers.js';
 import * as jobs from './jobs.js';
 
-export const OPS = { ...pageOps, ...infoOps, ...annotOps, ...formOps, ...protectOps, ...ocrOps };
+export const OPS = { ...pageOps, ...infoOps, ...annotOps, ...formOps, ...protectOps, ...ocrOps, ...a11yOps };
 export const HELPERS = { ...helpers, ...annotHelpers, ...formHelpers, ...protectHelpers };
 export const JOBS = { ...jobs };
 

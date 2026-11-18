@@ -1,5 +1,8 @@
 // Minimal DOM helpers. h('button.btn.primary', { onclick }, 'Label', child…)
 
+/** Read-only DOM properties that must be set as attributes (e.g. input.list). */
+const ATTRIBUTES_ONLY = new Set(['list', 'form']);
+
 export function h(tag, props, ...children) {
   const [name, ...classes] = tag.split('.');
   const el = document.createElement(name || 'div');
@@ -18,7 +21,7 @@ export function h(tag, props, ...children) {
       Object.assign(el.style, value);
     } else if (key === 'dataset') {
       Object.assign(el.dataset, value);
-    } else if (key in el && !key.includes('-') && key !== 'role') {
+    } else if (key in el && !key.includes('-') && key !== 'role' && !ATTRIBUTES_ONLY.has(key)) {
       el[key] = value;
     } else {
       el.setAttribute(key, value === true ? '' : String(value));

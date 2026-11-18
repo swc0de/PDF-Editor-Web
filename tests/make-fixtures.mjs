@@ -755,6 +755,45 @@ async function scanned() {
   await save(doc, 'scanned.pdf', { dpi: SCAN_DPI, words: ['capybara', 'quetzal'], lines: SCAN_PAGES.map((p) => p.lines) });
 }
 
+// --------------------------------------------------------------- a11y.pdf
+// Known accessibility problems for the checker: tagged, but one figure has no
+// alt text; no title and no language; a field without an accessible name;
+// page 3 is an image with no text; 22 pages and no bookmarks.
+async function a11y() {
+  const doc = await newDoc('');
+  doc.getInfoDict().delete(name('Title'));
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const ctx = doc.context;
+  const gray = new Uint8Array(60 * 40).fill(90);
+  const image = await doc.embedPng(encodeGrayPng(60, 40, gray));
+  const pages = [];
+  for (let i = 1; i <= 22; i++) {
+    const page = doc.addPage(SIZES.letter);
+    pages.push(page);
+    if (i === 3) {
+      page.drawImage(image, { x: 0, y: 0, width: page.getWidth(), height: page.getHeight() });
+      continue;
+    }
+    heading(page, font, i === 1 ? 'Accessibility sample' : `Section ${i}`);
+    if (i <= 2) page.drawImage(image, { x: 56, y: 500, width: 120, height: 80 });
+  }
+  const form = doc.getForm();
+  const email = form.createTextField('email');
+  email.addToPage(pages[0], { x: 56, y: 400, width: 200, height: 22, font });
+  const named = form.createTextField('full_name');
+  named.addToPage(pages[0], { x: 56, y: 360, width: 200, height: 22, font });
+  named.acroField.dict.set(name('TU'), PDFHexString.fromText('Your full name'));
+  // Structure tree: Document → [Figure (no alt) on page 1, Figure "A grey box" on page 2].
+  const root = ctx.register(ctx.obj({ Type: 'StructTreeRoot' }));
+  const figure1 = ctx.register(ctx.obj({ Type: 'StructElem', S: 'Figure', P: root, Pg: pages[0].ref, K: 0 }));
+  const figure2 = ctx.register(ctx.obj({ Type: 'StructElem', S: 'Figure', P: root, Pg: pages[1].ref, K: 0, Alt: PDFHexString.fromText('A grey box') }));
+  const docElem = ctx.register(ctx.obj({ Type: 'StructElem', S: 'Document', P: root, K: [figure1, figure2] }));
+  ctx.lookup(root).set(name('K'), docElem);
+  doc.catalog.set(name('StructTreeRoot'), root);
+  doc.catalog.set(name('MarkInfo'), ctx.obj({ Marked: true }));
+  await save(doc, 'a11y.pdf', { figuresWithoutAlt: [1], unnamedFields: ['email'], imageOnlyPages: [3] });
+}
+
 await mkdir(DIR, { recursive: true });
 console.log('Generating fixtures in tests/fixtures/');
 await multipage();
@@ -771,5 +810,6 @@ await large();
 await fonts();
 await sanitizeFixture();
 await scanned();
+await a11y();
 await writeFile(join(DIR, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 console.log(`✓ ${Object.keys(manifest).length} fixtures, manifest.json written`);
